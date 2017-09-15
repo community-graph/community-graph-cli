@@ -35,6 +35,8 @@ npm install -g .
 community-graph
 ```
 
+We'll be automating more of this so it's a more friendly user experience so check back soon and hopefully it'll be simpler.
+
 == Things to do
 
 * [ ] Interactive `community-graph` so that users can set parameters
