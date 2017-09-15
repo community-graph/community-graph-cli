@@ -39,7 +39,10 @@ We'll be automating more of this so it's a more friendly user experience so chec
 
 == Things to do
 
-* [ ] Add lambdas to import data from Twitter, GitHub, Meetup, StackOverflow
+* [*] Add lambdas to import data from StackOverflow
+* [ ] Add lambdas to import data from Meetup
+* [ ] Add lambdas to import data from Twitter
+* [ ] Add lambdas to import data from GitHub
 * [ ] Interactive `community-graph` so that users can set parameters
 * [ ] Generate `.communitygraph` file based on parameters passed into the `community-graph` command
 * [ ] Create S3 bucket to put summary page
