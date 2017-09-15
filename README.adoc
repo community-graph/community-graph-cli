@@ -1,0 +1,14 @@
+= Community Graph
+
+This is the start of a project that will allow you to create a community graph that collects data from Twitter, GitHub, StackOverflow, and Meetup and stores it in a Neo4j graph.
+You'll then have a database that you can query as well as a dashboard which summarises the community activity over the last week
+
+If you have any questions please send us an email devrel@neo4j.com
+
+== Things to do
+
+[] Interactive `community-graph` so that users can set parameters
+[] Generate `.communitygraph` file based on parameters passed into the `community-graph` command
+[] Create S3 bucket to put summary page
+[] Generate KMS key
+[] Spin up Neo4j server using AWS AMI

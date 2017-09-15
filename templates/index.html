@@ -1,0 +1,437 @@
+<!doctype html>
+<html>
+<head>
+    <title>This Week In {{ title }}</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"
+          integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+
+    <!-- Optional theme -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css"
+          integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+
+
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/bs/jqc-1.12.4/dt-1.10.15/datatables.min.css"/>
+
+
+    <script type="text/javascript" src="https://cdn.datatables.net/v/bs/jqc-1.12.4/dt-1.10.15/datatables.min.js"></script>
+
+    <style>
+    .dataTables_wrapper {
+        padding-top: 5px;
+    }
+    </style>
+
+    <script type="text/javascript" charset="utf-8">
+			$(document).ready(function() {
+				$('#twitter-table').DataTable({
+				    "order": [[ 2, "desc" ]],
+				     "columnDefs": [
+                        {
+                            "targets": [ 5 ],
+                            "visible": false,
+                            "searchable": false
+                        },
+                        {
+                            "targets": [ 3 ],
+                            "orderable": false
+                        },
+                        {
+                            "targets": [ 4 ],
+                            "orderData": [ 5 ]
+                        },
+                    ]
+
+				});
+
+				$('#github-table').DataTable({
+				    "order": [[ 3, "desc" ]],
+				     "columnDefs": [
+                        {
+                            "targets": [ 5,6 ],
+                            "visible": false,
+                            "searchable": false
+                        },
+
+                        {
+                            "targets": [ 3 ],
+                            "orderData": [ 5 ]
+                        },
+                        {
+                            "targets": [ 4 ],
+                            "orderData": [ 6 ]
+                        },
+                    ]
+
+				});
+
+				$('#meetup-table').DataTable({
+				    "order": [[ 3, "asc" ]],
+				     "columnDefs": [
+                        {
+                            "targets": [ 3 ],
+                            "visible": false,
+                            "searchable": false
+                        },
+
+                        {
+                            "targets": [ 2 ],
+                            "orderData": [ 3 ]
+                        },
+                    ]
+				});
+
+				$('#so-table').DataTable({
+				    "order": [[ 1, "desc" ]],
+				     "columnDefs": [
+                        {
+                            "targets": [ 2 ],
+                            "orderable": false
+                        },
+                    ]
+				});
+
+				$('#twitter-active-table').DataTable({
+				    "order": [[ 1, "desc" ]],
+				});
+
+                $('#github-active-table').DataTable({
+				    "order": [[ 1, "desc" ]],
+				    "columnDefs": [
+                        {
+                            "targets": [ 2 ],
+                            "orderable": false
+                        },
+                    ]
+				});
+
+				$('#so-active-table').DataTable({
+				    "order": [[ 1, "desc" ]],
+				});
+
+			} );
+		</script>
+
+</head>
+
+<body>
+  <nav class="navbar navbar-default navbar-fixed-top">
+        <div class="container">
+          <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+              <span class="sr-only">Toggle navigation</span>
+              <span class="icon-bar"></span>
+              <span class="icon-bar"></span>
+              <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="#">This Week In {{ title }}</a>
+          </div>
+          <div id="navbar" class="navbar-collapse collapse">
+
+            <ul class="nav navbar-nav navbar-right" style="margin-top:5px;">
+              <li><img src="{{ logo_src }}" height="40" /></li>
+            </ul>
+          </div><!--/.nav-collapse -->
+        </div>
+      </nav>
+
+<div class="container">
+    <p>
+        Generated at <strong>{{ time_now }}</strong>
+    </p>
+
+    <ul class="nav nav-tabs" role="tablist">
+        <li role="presentation" class="active"><a href="#twitter" aria-controls="twitter" role="tab" data-toggle="tab">Twitter</a></li>
+        <li role="presentation"><a href="#github" aria-controls="github" role="tab" data-toggle="tab">GitHub</a></li>
+        <li role="presentation"><a href="#meetup" aria-controls="meetup" role="tab" data-toggle="tab">Meetup</a></li>
+        <li role="presentation"><a href="#so" aria-controls="so" role="tab" data-toggle="tab">StackOverflow</a></li>
+        <li role="presentation"><a href="#twitter-active-members" aria-controls="twitter-active-members" role="tab" data-toggle="tab">Twitter Active</a></li>
+        <li role="presentation"><a href="#github-active-members" aria-controls="github-active-members" role="tab" data-toggle="tab">GitHub Active</a></li>
+        <li role="presentation"><a href="#so-active-members" aria-controls="so-active-members" role="tab" data-toggle="tab">SO Active</a></li>
+    </ul>
+
+    <div class="tab-content">
+
+        <div role="tabpanel" class="tab-pane active" id="twitter">
+            <table id="twitter-table" class="table table-striped" width="100%">
+                 <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>URL</th>
+                    <th>Score</th>
+                    <th>Users</th>
+                    <th>Created</th>
+                    <th>Timestamp</th>
+                </tr>
+                 </thead>
+
+                <tbody>
+                {% for r in twitter_records %}
+                <tr>
+                    <td>{{ r['title'] | shorten }}</td>
+                    <td><a href="{{r['url']}}" target="_blank">{{r['url'] | shorten }}</a></td>
+                    <td>{{ r['score']}}</td>
+                    <td>
+                        <ul class="list-inline">
+                            {% for user in r['users'] %}
+                            <li><a href="http://twitter.com/{{ user }}" target="_blank">@{{ user }}</a></li>
+                            {% endfor %}
+                        </ul>
+                    </td>
+                    <td>
+                        {{ r['dateCreated'] | humanise }}
+                    </td>
+                    <td>
+                        {{ r['dateCreated']  }}
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+
+        </div>
+
+        <div role="tabpanel" class="tab-pane" id="github">
+            <table id="github-table" class="table table-striped" width="100%">
+                <thead>
+                <tr>
+                    <th>Project</th>
+                    <th>User</th>
+                    <th>Favourites</th>
+                    <th>Updated</th>
+                    <th>Created</th>
+                    <th>Updated Timestamp</th>
+                    <th>Created Timestamp</th>
+                </tr>
+                </thead>
+
+                <tbody>
+                {% for r in github_records %}
+                <tr>
+                    <td>
+                        <p>
+                            <a href="{{r['n.url']}}" target="_blank">{{r['n.title']}}</a>
+                        </p>
+                        <p>
+                            {{r['n.description'] | shorten }}
+                        </p>
+                    </td>
+                    <td><a href="http://github.com/{{r['user.name']}}" target="_blank">{{r['user.name']}}</a></td>
+                    <td>{{ r['n.favorites']}}</td>
+                    <td>{{ r['n.pushed'] | humanise }}</td>
+                    <td>{{ r['n.created'] | humanise }}</td>
+
+                    <td>{{ r['n.pushed'] }}</td>
+                    <td>{{ r['n.created'] }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div role="tabpanel" class="tab-pane" id="meetup">
+            <table id="meetup-table" class="table table-striped" width="100%">
+                <thead>
+                <tr>
+                    <th>Event</th>
+                    <th>Group</th>
+                    <th>Time</th>
+                    <th>Timestamp</th>
+                </tr>
+                </thead>
+
+                <tbody>
+                {% for r in meetup_records %}
+                <tr>
+                    <td><a href="{{r['event']['link']}}" target="_blank">{{ r['event']['title'] }}</a></td>
+                    <td>{{ r['group']['title'] }}</td>
+                    <td>{{ r['event']['time'] | humanise }}</td>
+                    <td>{{ r['event']['time'] }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div role="tabpanel" class="tab-pane" id="so">
+            <table id="so-table"  class="table table-striped">
+                <thead>
+                <tr>
+                    <th>Question</th>
+                    <th>Views</th>
+                    <th>Tags</th>
+                </tr>
+                </thead>
+
+                <tbody>
+                {% for r in so_records %}
+                <tr>
+                    <td><a href="{{r['question']['url']}}" target="_blank">{{ r['question']['title'] | safe }}</a></td>
+                    <td>{{ r['question']['views'] }}</td>
+                    <td style="width:50%">
+                        <ul class="list-inline">
+                            {% for tag in r['tags'] %}
+                            <li><a href="https://stackoverflow.com/questions/tagged/{{ tag }}" target="_blank">{{ tag }}</a></li>
+                            {% endfor %}
+                        </ul>
+
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div role="tabpanel" class="tab-pane" id="twitter-active-members">
+
+            <table id="twitter-active-table" class="table table-striped">
+                <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Tweets this week</th>
+                    <th>Tweets last week</th>
+                </tr>
+                </thead>
+
+                <tbody>
+                {% for r in twitter_active_members %}
+                <tr>
+                    <td>
+                        <div style="float:left; margin-right:5px;">
+                            <img src="{{ r['profile_image'] }}" />
+                        </div>
+                        <div style="padding-top: 15px;">
+                            <a href="http://twitter.com/{{r['user']}}" target="_blank">@{{r['user']}}</a>
+                        </div>
+                    </td>
+                    <td>{{ r['count'] }}</td>
+                    <td><span class="inlinesparkline">{{ r['lastWeekCount'] | stringseparate }}</span></td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div role="tabpanel" class="tab-pane" id="github-active-members">
+
+            <table id="github-active-table" class="table table-striped">
+                <thead>
+                <tr>
+
+                    <th>User</th>
+                    <th># repos</th>
+                    <th>Repositories</th>
+
+                </tr>
+                    </thead>
+
+                <tbody>
+                {% for r in github_active_members %}
+                <tr>
+                    <td>
+                        <div style="float:left; margin-right:5px;">
+                            <img src="{{ r['user.avatarUrl'] }}" width="48px" height="48px" />
+                        </div>
+                        <div style="padding-top: 15px;">
+                            <a href="http://github.com/{{r['user.name']}}" target="_blank">{{r['user.name']}}</a>
+                        </div>
+                    </td>
+                    <td>{{ r['count'] }}</td>
+                    <td style="width:50%">
+                        <ul class="list-inline">
+                            {% for repo in r['repositories'] %}
+                            <li><a href="http://github.com/{{ repo['full_name'] }}" target="_blank">{{ repo['title']
+                                }}</a></li>
+                            {% endfor %}
+                        </ul>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+                <div role="tabpanel" class="tab-pane" id="so-active-members">
+
+            <table id="so-active-table" class="table table-striped">
+                <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Answers this week</th>
+                    <th>Answers last week</th>
+                </tr>
+                </thead>
+
+                <tbody>
+                {% for r in so_active_members %}
+                <tr>
+                    <td>
+                        <div style="float:left; margin-right:5px;">
+                            <img src="{{ r['user']['profileImage'] }}" width="48px" height="48px" />
+                        </div>
+                        <div style="padding-top: 15px;">
+                            <a href="https://stackoverflow.com/users/{{r['user']['id']}}" target="_blank">{{r['user']['name']}}</a>
+                        </div>
+                    </td>
+                    <td>{{ r['replies'] }}</td>
+                    <td>{{ r['lastWeekReplies'] }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+
+    </div>
+</div>
+
+<footer class="footer">
+     <div class="container">
+       <span class="text-muted">
+         Powered by <a href="https://neo4j.com/developer/">Neo4j</a>. If you'd like your own community graph send us an email <a href="mailto:devrel@neo4j.com">devrel@neo4j.com</a>
+       </span>
+     </div>
+   </footer>
+
+<style type="text/css">
+/* Sticky footer styles
+-------------------------------------------------- */
+html {
+  position: relative;
+  min-height: 100%;
+}
+body {
+  /* Margin bottom by footer height */
+  margin-bottom: 60px;
+  padding-top: 70px;
+}
+.footer {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  /* Set the fixed height of the footer here */
+  height: 60px;
+  line-height: 60px; /* Vertically center the text there */
+  background-color: #f5f5f5;
+}
+</style>
+
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery-sparklines/2.1.2/jquery.sparkline.min.js"></script>
+
+<script type="text/javascript">
+$('a[data-toggle="tab"]').on('click', function (evt) {
+  console.log("evt fired: " + evt.target.href);
+  if(evt.target.href.includes("twitter-active")) {
+      console.log("twitter event fired")
+      $('.inlinesparkline').sparkline();
+  }
+});
+</script>
+
+</body>
+</html>
