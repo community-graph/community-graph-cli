@@ -1,0 +1,35 @@
+{
+  "name": "community-graph-cli",
+  "version": "0.0.1",
+  "description": "Deploy a Neo4j backed Community graph that pulls in data from Twitter, GitHub, Meetup, and StackOverflow",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "./bin/community-graph"
+  },
+  "bin": {
+    "community-graph": "./bin/community-graph"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/community-graph/community-graph-cli.git"
+  },
+  "keywords": [
+    "Community Graph",
+    "Neo4j"
+  ],
+  "author": "Mark Needham",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/community-graph/community-graph-cli/issues"
+  },
+  "homepage": "https://github.com/community-graph/community-graph-cli#readme",
+  "dependencies": {
+    "async": "^2.4.0",
+    "chalk": "^1.1.3",
+    "follow-redirects": "^1.2.3",
+    "opn": "^5.0.0",
+    "serverless": "^1.14.0",
+    "serverless-python-requirements": "^2.3.3"
+  }
+}
