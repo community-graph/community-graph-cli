@@ -2,14 +2,25 @@ service: community-graph
 
 frameworkVersion: ">=1.2.0 <2.0.0"
 
+custom:
+  stage: "${opt:stage, self:provider.stage}"
+  kmsKeyArn: ${file(communitygraph.json):credentials.keyArn}
+
 provider:
   name: aws
   runtime: python3.6
   timeout: 180
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - KMS:Decrypt
+      Resource:
+        - ${self:custom.kmsKeyArn}
 
 package:
   exclude:
     - node_modules/**
+    - a/**
 
 plugins:
   - serverless-python-requirements
@@ -18,5 +29,10 @@ functions:
   page-summary:
       name: CommunityGraphCLI-GeneratePageSummary
       handler: handler.generate_page_summary
+      events:
+        - schedule: rate(1 hour)
+  so-import:
+      name: CommunityGraphCLI-StackOverflowImport
+      handler: handler.so_import
       events:
         - schedule: rate(1 hour)

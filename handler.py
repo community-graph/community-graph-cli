@@ -1,11 +1,18 @@
 import lib.summary as summary
+import lib.so as so
+from lib.encryption import decrypt_value
+
 import json
+
+def read_config():
+    with open('communitygraph.json') as data_file:
+        config = json.load(data_file)
+    return config
+
+config = read_config()
 
 def generate_page_summary(event, _):
     print("Event:", event)
-
-    with open('.communitygraph') as data_file:
-        config = json.load(data_file)
 
     url = config["serverUrl"]
 
@@ -18,3 +25,16 @@ def generate_page_summary(event, _):
     logo_src = config["logo"]
 
     summary.generate(url, user, password, title, short_name, logo_src)
+
+def so_import(event, _):
+    print("Event:", event)
+
+    neo4j_url = "bolt://{url}".format(url = config.get("serverUrl", "localhost"))
+
+    write_credentials = config["credentials"]["write"]
+    neo4j_user = write_credentials.get('user', "neo4j")
+    neo4j_password = decrypt_value(write_credentials['password'])
+
+    tag = config["tag"]
+
+    so.import_so(neo4j_url=neo4j_url, neo4j_user=neo4j_user, neo4j_pass=neo4j_password, tag=tag)

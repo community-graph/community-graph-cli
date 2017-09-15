@@ -7,7 +7,7 @@ If you have any questions please send us an email devrel@neo4j.com
 
 == How do I use it?
 
-At the moment you'll need to hardcode the following values into a `.communitygraph` file:
+At the moment you'll need to hardcode the following values into a `communitygraph.json` file:
 
 ```
 {
@@ -39,8 +39,11 @@ We'll be automating more of this so it's a more friendly user experience so chec
 
 == Things to do
 
+* [ ] Add lambdas to import data from Twitter, GitHub, Meetup, StackOverflow
 * [ ] Interactive `community-graph` so that users can set parameters
 * [ ] Generate `.communitygraph` file based on parameters passed into the `community-graph` command
 * [ ] Create S3 bucket to put summary page
 * [ ] Generate KMS key
+* [ ] Encrypt passwords using KMS key
 * [ ] Spin up Neo4j server using AWS AMI
+* [ ] Delete `__pycache__` directory at the end of a failing run
