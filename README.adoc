@@ -5,6 +5,36 @@ You'll then have a database that you can query as well as a dashboard which summ
 
 If you have any questions please send us an email devrel@neo4j.com
 
+== How do I use it?
+
+At the moment you'll need to hardcode the following values into a `.communitygraph` file:
+
+```
+{
+  "communityName": "Community Name Here",
+  "s3Bucket": "Name of S3 bucket",
+  "logo": "Path to an image of your community",
+  "serverUrl":"IP Address/Hostname of Neo4j Instance",
+  "credentials":
+  {
+    "readonly":
+    {
+      "user": "Neo4j user name",
+      "password": "Neo4j password"
+    }
+  }
+}
+```
+
+You'll also need to make sure you have your AWS credentials in `~/.aws/credentials`.
+
+You can run:
+
+```
+npm install -g .
+community-graph
+```
+
 == Things to do
 
 * [ ] Interactive `community-graph` so that users can set parameters
