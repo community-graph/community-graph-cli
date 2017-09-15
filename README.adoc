@@ -7,8 +7,8 @@ If you have any questions please send us an email devrel@neo4j.com
 
 == Things to do
 
-[] Interactive `community-graph` so that users can set parameters
-[] Generate `.communitygraph` file based on parameters passed into the `community-graph` command
-[] Create S3 bucket to put summary page
-[] Generate KMS key
-[] Spin up Neo4j server using AWS AMI
+* [ ] Interactive `community-graph` so that users can set parameters
+* [ ] Generate `.communitygraph` file based on parameters passed into the `community-graph` command
+* [ ] Create S3 bucket to put summary page
+* [ ] Generate KMS key
+* [ ] Spin up Neo4j server using AWS AMI
