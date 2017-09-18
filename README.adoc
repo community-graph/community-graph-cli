@@ -21,15 +21,23 @@ At the moment you'll need to hardcode the following values into a `communitygrap
 ```
 {
   "communityName": "Community Name Here",
+  "tag": "Tag for searching on GitHub",
   "s3Bucket": "Name of S3 bucket",
   "logo": "Path to an image of your community",
-  "serverUrl":"IP Address/Hostname of Neo4j Instance",
-  "credentials":
-  {
-    "readonly":
-    {
+  "serverUrl": "IP Address/Hostname of Neo4j Instance",
+  "twitterSearch": "Twitter search term",
+  "credentials": {
+    "keyArn": "KMS Key ARN",
+    "meetupApiKey": "Meetup API key (encrypted by KMS key)",
+    "githubToken": "GitHub Token (encrypted by KMS key)",
+    "twitterBearer": "Twitter Bearer (encrypted by KMS key)",
+    "readonly": {
       "user": "Neo4j user name",
-      "password": "Neo4j password"
+      "password": "Neo4j password (encrypted by KMS key)"
+    },
+    "write": {
+      "user": "Neo4j user name",
+      "password": "Neo4j password (encrypted by KMS key)"
     }
   }
 }
@@ -49,11 +57,11 @@ We'll be automating more of this so it's a more friendly user experience so chec
 == Things to do
 
 * [*] Add lambdas to import data from StackOverflow
-* [ ] Add lambdas to import data from Meetup
-* [ ] Add lambdas to import data from Twitter
-* [ ] Add lambdas to import data from GitHub
+* [*] Add lambdas to import data from Meetup
+* [*] Add lambdas to import data from Twitter
+* [*] Add lambdas to import data from GitHub
 * [ ] Interactive `community-graph` so that users can set parameters
-* [ ] Generate `.communitygraph` file based on parameters passed into the `community-graph` command
+* [ ] Generate `communitygraph.json` file based on parameters passed into the `community-graph` command
 * [ ] Create S3 bucket to put summary page
 * [ ] Generate KMS key
 * [ ] Encrypt passwords using KMS key
