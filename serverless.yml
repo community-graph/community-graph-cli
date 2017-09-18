@@ -36,3 +36,13 @@ functions:
       handler: handler.so_import
       events:
         - schedule: rate(1 hour)
+  meetup-events-import:
+      name: CommunityGraphCLI-MeetupEventsImport
+      handler: handler.meetup_events_import
+      events:
+        - schedule: rate(1 hour)
+  meetup-groups-import:
+      name: CommunityGraphCLI-MeetupGroupsImport
+      handler: handler.meetup_groups_import
+      events:
+        - schedule: rate(1 day)
