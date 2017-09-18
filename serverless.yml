@@ -51,3 +51,23 @@ functions:
       handler: handler.github_import
       events:
         - schedule: rate(1 hour)
+  twitter-import:
+      name: CommunityGraphCLI-TwitterImport
+      handler: handler.twitter_import
+      events:
+        - schedule: rate(1 hour)
+  twitter-clean-links:
+      name: CommunityGraphCLI-TwitterCleanLinks
+      handler: handler.twitter_clean_links
+      events:
+        - schedule: rate(1 hour)
+  twitter-hydrate-links:
+      name: CommunityGraphCLI-TwitterHydrateLinks
+      handler: handler.twitter_hydrate_links
+      events:
+        - schedule: rate(1 hour)
+  twitter-unshorten-links:
+      name: CommunityGraphCLI-TwitterUnshortenLinks
+      handler: handler.twitter_unshorten_links
+      events:
+        - schedule: rate(1 hour)

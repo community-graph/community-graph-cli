@@ -2,3 +2,4 @@ communitygraph.json
 .requirements
 .serverless
 node_modules
+__pycache__
