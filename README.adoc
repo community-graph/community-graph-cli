@@ -5,6 +5,15 @@ You'll then have a database that you can query as well as a dashboard which summ
 
 If you have any questions please send us an email devrel@neo4j.com
 
+== Pre requisites
+
+You'll need to have the following installed:
+
+```
+Node.js 6.7.0
+Python  3.6.0
+```
+
 == How do I use it?
 
 At the moment you'll need to hardcode the following values into a `communitygraph.json` file:

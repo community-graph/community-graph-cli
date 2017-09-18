@@ -46,3 +46,8 @@ functions:
       handler: handler.meetup_groups_import
       events:
         - schedule: rate(1 day)
+  github-import:
+      name: CommunityGraphCLI-GitHubImport
+      handler: handler.github_import
+      events:
+        - schedule: rate(1 hour)

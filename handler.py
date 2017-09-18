@@ -1,7 +1,9 @@
 import lib.summary as summary
 import lib.so as so
-from lib.encryption import decrypt_value
 import lib.meetup as meetup
+import lib.github as github
+
+from lib.encryption import decrypt_value
 
 import json
 
@@ -73,3 +75,19 @@ def meetup_groups_import(event, _):
 
     meetup.import_groups(neo4j_url=neo4j_url, neo4j_user=neo4j_user, neo4j_pass=neo4j_password, tag=tag,
                          meetup_key=meetup_key)
+
+
+def github_import(event, _):
+    print("Event:", event)
+
+    credentials = config["credentials"]
+    write_credentials = credentials["write"]
+
+    neo4j_url = "bolt://{url}".format(url=config.get("serverUrl", "localhost"))
+    neo4j_user = write_credentials.get('user', "neo4j")
+    neo4j_password = decrypt_value(write_credentials['password'])
+    github_token = decrypt_value(credentials["githubToken"])
+    tag = config["tag"]
+
+    github.import_github(neo4j_url=neo4j_url, neo4j_user=neo4j_user, neo4j_pass=neo4j_password, tag=tag,
+                         github_token=github_token)
