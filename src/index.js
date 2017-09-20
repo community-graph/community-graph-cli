@@ -8,7 +8,13 @@ var async   = require('async'),
     AWS = require("aws-sdk"),
     opn     = require('opn');
 
-let communityGraphParams = {}
+let rawParams = {};
+let communityGraphParams = {
+    credentials: {
+        write: { },
+        read: { }
+    }
+};
 
 function welcomeToCommunityGraph(callback) {
   console.log("Hello and welcome to the community graph!")
@@ -93,13 +99,9 @@ function getParameters(callback)  {
     console.log('  serverUrl: ' + result.serverUrl);
     console.log('  serverUsername: ' + result.serverUsername);
     console.log('  serverPassword: ' + result.serverPassword);
-    communityGraphParams = result;
+    rawParams = result;
     return callback(null);
   });
-
-//    communityGraphParams.kmsKeyArn = "foo"
-
-//    return callback(null)
 
 }
 
@@ -111,15 +113,15 @@ function createKMSKey(callback) {
             callback(null);
         }
         else {
-            communityGraphParams.kmsKeyArn = data.KeyMetadata.Arn
+            rawParams.kmsKeyArn = data.KeyMetadata.Arn
             callback(null);
         }
     });
 };
 
 function createKMSKeyAlias(callback) {
-    let kmsKeyArn = communityGraphParams.kmsKeyArn;
-    let communityName = communityGraphParams.communityName;
+    let kmsKeyArn = rawParams.kmsKeyArn;
+    let communityName = rawParams.communityName;
 
     let kms = new AWS.KMS({'region': 'us-east-1'});
     let createAliasParams = {
@@ -137,13 +139,38 @@ function createKMSKeyAlias(callback) {
     });
 }
 
-
-function after(callback) {
+function encryptSensitiveValues(callback) {
     console.log('after everything');
-    console.log(communityGraphParams);
-    return callback(null);
+    console.log(rawParams);
+
+    let kms = new AWS.KMS({'region': 'us-east-1'});
+    var params = {
+        KeyId: rawParams.kmsKeyArn,
+        Plaintext: rawParams.githubToken
+    };
+
+    kms.encrypt(params, function(err, data) {
+        if (err) {
+            console.log(err, err.stack); // an error occurred
+            callback(null);
+        }
+        else {
+            communityGraphParams.credentials.githubToken = data.CiphertextBlob.toString('base64');
+            console.log(communityGraphParams)
+            callback(null);
+        }
+    });
 }
 
+function writeCommunityGraphJson(callback) {
+    communityGraphParams.credentials.keyArn = rawParams.kmsKeyArn;
+        
+    try {
+        fs.writeFileSync("communitygraph.json", JSON.stringify(communityGraphParams));
+    } catch (e) {
+        callback(null);
+    }
+}
 
 function deployLambdas(callback) {
   const serverless = new Serverless({});
@@ -166,7 +193,7 @@ async.waterfall([
   welcomeToCommunityGraph,
   getParameters,
   function(callback) {
-    if(!communityGraphParams.kmsKeyArn) {
+    if(!rawParams.kmsKeyArn) {
         async.waterfall([
             createKMSKey,
             createKMSKeyAlias
@@ -176,7 +203,8 @@ async.waterfall([
     }
   },
 //  deployLambdas
-  after
+  encryptSensitiveValues,
+  writeCommunityGraphJson
 ], function (err, result) {
     if (err) {
       console.log("ERROR - exiting");
