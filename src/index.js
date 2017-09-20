@@ -12,7 +12,7 @@ let rawParams = {};
 let communityGraphParams = {
     credentials: {
         write: { },
-        read: { }
+        readonly: { }
     }
 };
 
@@ -163,8 +163,17 @@ function encryptSensitiveValues(callback) {
 }
 
 function writeCommunityGraphJson(callback) {
+    communityGraphParams.communityName = rawParams.communityName;
+    communityGraphParams.tag = rawParams.tag;
+    communityGraphParams.serverUrl = rawParams.serverUrl;
+    communityGraphParams.logo = rawParams.logo;
+    communityGraphParams.s3Bucket = rawParams.s3Bucket;
+    communityGraphParams.twitterSearch = rawParams.twitterSearch;
+
     communityGraphParams.credentials.keyArn = rawParams.kmsKeyArn;
-        
+    communityGraphParams.credentials.readonly.user = rawParams.readOnlyServerUsername;
+    communityGraphParams.credentials.write.user = rawParams.serverUsername;
+
     try {
         fs.writeFileSync("communitygraph.json", JSON.stringify(communityGraphParams));
     } catch (e) {
