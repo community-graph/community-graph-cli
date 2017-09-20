@@ -1,13 +1,15 @@
-service: community-graph
+service: community-graph-cli
 
 frameworkVersion: ">=1.2.0 <2.0.0"
 
 custom:
   stage: "${opt:stage, self:provider.stage}"
-  kmsKeyArn: ${file(communitygraph.json):credentials.keyArn}
+  kmsKeyArn: ${file(${env:CONFIG_FILE, 'communitygraph.json'}):credentials.keyArn}
+  communityName: ${file(${env:CONFIG_FILE, 'communitygraph.json'}):communityName}
 
 provider:
   name: aws
+  stage: ${file(${env:CONFIG_FILE, 'communitygraph.json'}):communityName}
   runtime: python3.6
   timeout: 180
   iamRoleStatements:
@@ -27,47 +29,47 @@ plugins:
 
 functions:
   page-summary:
-      name: CommunityGraphCLI-GeneratePageSummary
+      name: CommunityGraphCLI-${self:custom.communityName}-GeneratePageSummary
       handler: handler.generate_page_summary
       events:
         - schedule: rate(1 hour)
   so-import:
-      name: CommunityGraphCLI-StackOverflowImport
+      name: CommunityGraphCLI-${self:custom.communityName}-StackOverflowImport
       handler: handler.so_import
       events:
         - schedule: rate(1 hour)
   meetup-events-import:
-      name: CommunityGraphCLI-MeetupEventsImport
+      name: CommunityGraphCLI-${self:custom.communityName}-MeetupEventsImport
       handler: handler.meetup_events_import
       events:
         - schedule: rate(1 hour)
   meetup-groups-import:
-      name: CommunityGraphCLI-MeetupGroupsImport
+      name: CommunityGraphCLI-${self:custom.communityName}-MeetupGroupsImport
       handler: handler.meetup_groups_import
       events:
         - schedule: rate(1 day)
   github-import:
-      name: CommunityGraphCLI-GitHubImport
+      name: CommunityGraphCLI-${self:custom.communityName}-GitHubImport
       handler: handler.github_import
       events:
         - schedule: rate(1 hour)
   twitter-import:
-      name: CommunityGraphCLI-TwitterImport
+      name: CommunityGraphCLI-${self:custom.communityName}-TwitterImport
       handler: handler.twitter_import
       events:
         - schedule: rate(1 hour)
   twitter-clean-links:
-      name: CommunityGraphCLI-TwitterCleanLinks
+      name: CommunityGraphCLI-${self:custom.communityName}-TwitterCleanLinks
       handler: handler.twitter_clean_links
       events:
         - schedule: rate(1 hour)
   twitter-hydrate-links:
-      name: CommunityGraphCLI-TwitterHydrateLinks
+      name: CommunityGraphCLI-${self:custom.communityName}-TwitterHydrateLinks
       handler: handler.twitter_hydrate_links
       events:
         - schedule: rate(1 hour)
   twitter-unshorten-links:
-      name: CommunityGraphCLI-TwitterUnshortenLinks
+      name: CommunityGraphCLI-${self:custom.communityName}-TwitterUnshortenLinks
       handler: handler.twitter_unshorten_links
       events:
         - schedule: rate(1 hour)

@@ -63,7 +63,11 @@ We'll be automating more of this so it's a more friendly user experience so chec
 * [ ] Interactive `community-graph` so that users can set parameters
 * [ ] Generate `communitygraph.json` file based on parameters passed into the `community-graph` command
 * [ ] Create S3 bucket to put summary page
+* [ ] Permissions for S3 bucket <-> lambda user
 * [ ] Generate KMS key
 * [ ] Encrypt passwords using KMS key
 * [ ] Spin up Neo4j server using AWS AMI
 * [ ] Delete `__pycache__` directory at the end of a failing run
+* [ ] Install APOC on the Neo4j server
+* [ ] Run all the lambdas once on creation
+* [ ] Run the twitter lambda with `catch-up: false`
