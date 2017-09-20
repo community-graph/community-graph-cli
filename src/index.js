@@ -132,7 +132,6 @@ function createKMSKeyAlias(callback) {
             callback(null);
         }
         else {
-            console.log(data);           // successful response
             callback(null);
         }
     });
@@ -153,20 +152,11 @@ function deployLambdas(callback) {
   CLI.prototype.processInput = function() {
     return { commands: ['deploy'], options: { help: false } };
   };
-  //
-  // CLI.prototype.consoleLog = function(message) {
-  //   (this._internal = this._internal || []).push(message);
-  // };
-  //
-  // CLI.prototype.outputLog = function(message) {
-  //   console.log(this._internal);
-  // };
 
   serverless.cli = CLI;
 
   return serverless.init()
   .then(() => serverless.run())
-  // .then(() => serverless.cli.outputLog())
   .catch((ex) => { console.error(ex); });
 }
 
