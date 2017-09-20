@@ -7,12 +7,14 @@ import lib.twitter as twitter
 from lib.encryption import decrypt_value
 
 import json
+import os
 
 
 def read_config():
-    with open('communitygraph.json') as data_file:
-        config = json.load(data_file)
-    return config
+    config_file = os.getenv('CONFIG_FILE', 'communitygraph.json')
+    print("Reading config from {config_file}".format(config_file=config_file))
+    with open(config_file) as data_file:
+        return json.load(data_file)
 
 
 config = read_config()
@@ -25,7 +27,7 @@ def generate_page_summary(event, _):
 
     read_only_credentials = config["credentials"]["readonly"]
     user = read_only_credentials["user"]
-    password = read_only_credentials["password"]
+    password = decrypt_value(read_only_credentials["password"])
 
     title = config["communityName"]
     short_name = config["s3Bucket"]

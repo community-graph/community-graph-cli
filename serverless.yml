@@ -11,6 +11,8 @@ provider:
   name: aws
   stage: ${file(${env:CONFIG_FILE, 'communitygraph.json'}):communityName}
   runtime: python3.6
+  environment:
+    CONFIG_FILE: ${env:CONFIG_FILE, 'communitygraph.json'}
   timeout: 180
   iamRoleStatements:
     - Effect: Allow
