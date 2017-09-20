@@ -16,6 +16,8 @@ let communityGraphParams = {
     }
 };
 
+let kms = new AWS.KMS({'region': 'us-east-1'});
+
 function welcomeToCommunityGraph(callback) {
   console.log("Hello and welcome to the community graph!")
   return callback(null);
@@ -106,7 +108,6 @@ function getParameters(callback)  {
 }
 
 function createKMSKey(callback) {
-    let kms = new AWS.KMS({'region': 'us-east-1'});
     kms.createKey({}, function (err, data) {
         if (err) {
             console.log(err, err.stack); // an error occurred
@@ -123,7 +124,6 @@ function createKMSKeyAlias(callback) {
     let kmsKeyArn = rawParams.kmsKeyArn;
     let communityName = rawParams.communityName;
 
-    let kms = new AWS.KMS({'region': 'us-east-1'});
     let createAliasParams = {
         AliasName: "alias/CommunityGraphCLI-" + communityName,
         TargetKeyId: kmsKeyArn
@@ -139,24 +139,96 @@ function createKMSKeyAlias(callback) {
     });
 }
 
-function encryptSensitiveValues(callback) {
-    console.log('after everything');
-    console.log(rawParams);
-
-    let kms = new AWS.KMS({'region': 'us-east-1'});
+function encryptGitHubToken(callback) {
+    let valueToEncrypt = rawParams.githubToken;
     var params = {
         KeyId: rawParams.kmsKeyArn,
-        Plaintext: rawParams.githubToken
+        Plaintext: valueToEncrypt
     };
 
     kms.encrypt(params, function(err, data) {
         if (err) {
-            console.log(err, err.stack); // an error occurred
+            console.log(err, err.stack);
             callback(null);
         }
         else {
             communityGraphParams.credentials.githubToken = data.CiphertextBlob.toString('base64');
-            console.log(communityGraphParams)
+            callback(null);
+        }
+    });
+}
+
+function encryptMeetupApiKey(callback) {
+    let valueToEncrypt = rawParams.meetupApiKey;
+    var params = {
+        KeyId: rawParams.kmsKeyArn,
+        Plaintext: valueToEncrypt
+    };
+
+    kms.encrypt(params, function(err, data) {
+        if (err) {
+            console.log(err, err.stack);
+            callback(null);
+        }
+        else {
+            communityGraphParams.credentials.meetupApiKey = data.CiphertextBlob.toString('base64');
+            callback(null);
+        }
+    });
+}
+
+function encryptTwitterBearer(callback) {
+    let valueToEncrypt = rawParams.twitterBearer;
+    var params = {
+        KeyId: rawParams.kmsKeyArn,
+        Plaintext: valueToEncrypt
+    };
+
+    kms.encrypt(params, function(err, data) {
+        if (err) {
+            console.log(err, err.stack);
+            callback(null);
+        }
+        else {
+            communityGraphParams.credentials.twitterBearer = data.CiphertextBlob.toString('base64');
+            callback(null);
+        }
+    });
+}
+
+function encryptWritePassword(callback) {
+    let valueToEncrypt = rawParams.serverPassword;
+    var params = {
+        KeyId: rawParams.kmsKeyArn,
+        Plaintext: valueToEncrypt
+    };
+
+    kms.encrypt(params, function(err, data) {
+        if (err) {
+            console.log(err, err.stack);
+            callback(null);
+        }
+        else {
+            communityGraphParams.credentials.write.password = data.CiphertextBlob.toString('base64');
+            callback(null);
+        }
+    });
+}
+
+function encryptReadOnlyPassword(callback) {
+    let valueToEncrypt = rawParams.readOnlyServerPassword;
+    var params = {
+        KeyId: rawParams.kmsKeyArn,
+        Plaintext: valueToEncrypt
+    };
+
+    kms.encrypt(params, function(err, data) {
+        if (err) {
+            console.log(err, err.stack);
+            callback(null);
+        }
+        else {
+            communityGraphParams.credentials.readonly.password = data.CiphertextBlob.toString('base64');
             callback(null);
         }
     });
@@ -212,7 +284,11 @@ async.waterfall([
     }
   },
 //  deployLambdas
-  encryptSensitiveValues,
+  encryptMeetupApiKey,
+  encryptTwitterBearer,
+  encryptGitHubToken,
+  encryptWritePassword,
+  encryptReadOnlyPassword,
   writeCommunityGraphJson
 ], function (err, result) {
     if (err) {
