@@ -17,6 +17,7 @@ let communityGraphParams = {
 };
 
 let kms = new AWS.KMS({'region': 'us-east-1'});
+let s3 = new AWS.S3({'region': 'us-east-1'});
 
 function welcomeToCommunityGraph(callback) {
   console.log("Hello and welcome to the community graph!")
@@ -134,6 +135,22 @@ function createKMSKeyAlias(callback) {
             callback(null);
         }
         else {
+            callback(null);
+        }
+    });
+}
+
+function createS3Bucket(callback) {
+    let s3BucketName = "marks-test-" + rawParams.communityName.toLowerCase();
+    var params = { Bucket: s3BucketName };
+
+    s3.createBucket(params, function(err, data) {
+        if(err) {
+            console.log(err, err.stack);
+            callback(null);
+        } else {
+            console.log(data);
+            rawParams.s3Bucket = data.Location.replace("/", "");
             callback(null);
         }
     });
@@ -278,6 +295,15 @@ async.waterfall([
         async.waterfall([
             createKMSKey,
             createKMSKeyAlias
+        ], callback);
+    } else {
+        callback(null)
+    }
+  },
+  function(callback) {
+    if(!rawParams.s3Bucket) {
+        async.waterfall([
+            createS3Bucket,
         ], callback);
     } else {
         callback(null)

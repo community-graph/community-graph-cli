@@ -6,6 +6,7 @@ custom:
   stage: "${opt:stage, self:provider.stage}"
   kmsKeyArn: ${file(${env:CONFIG_FILE, 'communitygraph.json'}):credentials.keyArn}
   communityName: ${file(${env:CONFIG_FILE, 'communitygraph.json'}):communityName}
+  s3Bucket: ${file(${env:CONFIG_FILE, 'communitygraph.json'}):s3Bucket}
 
 provider:
   name: aws
@@ -20,6 +21,12 @@ provider:
         - KMS:Decrypt
       Resource:
         - ${self:custom.kmsKeyArn}
+    - Effect: Allow
+      Action:
+        - s3:PutObject
+        - s3:GetObject
+      Resource:
+        - arn:aws:s3:::${self:custom.s3Bucket}
 
 package:
   exclude:
@@ -28,13 +35,6 @@ package:
 
 plugins:
   - serverless-python-requirements
-
-resources:
-  Resources:
-    S3BucketUpload:
-      Type: AWS::S3::Bucket
-      Properties:
-        BucketName: ${file(${env:CONFIG_FILE, 'communitygraph.json'}):s3Bucket}
 
 functions:
   page-summary:
