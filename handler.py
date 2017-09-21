@@ -45,7 +45,7 @@ def so_import(event, _):
     neo4j_user = write_credentials.get('user', "neo4j")
     neo4j_password = decrypt_value(write_credentials['password'])
 
-    tag = config["tag"]
+    tag = ";".join(config["tag"])
     print("Importing SO questions with tag: {tag}".format(tag = tag))
 
     so.import_so(neo4j_url=neo4j_url, neo4j_user=neo4j_user, neo4j_pass=neo4j_password, tag=tag)
@@ -91,7 +91,7 @@ def github_import(event, _):
     neo4j_user = write_credentials.get('user', "neo4j")
     neo4j_password = decrypt_value(write_credentials['password'])
     github_token = decrypt_value(credentials["githubToken"])
-    tag = config["tag"]
+    tag = " OR ".join(config["tag"])
 
     github.import_github(neo4j_url=neo4j_url, neo4j_user=neo4j_user, neo4j_pass=neo4j_password, tag=tag,
                          github_token=github_token)

@@ -68,8 +68,9 @@ def import_groups(neo4j_url, neo4j_user, neo4j_pass, tag, meetup_key):
 
     with GraphDatabase.driver(neo4j_url, auth=basic_auth(neo4j_user, neo4j_pass)) as driver:
         with driver.session() as session:
-            group_url = "https://api.meetup.com/2/groups?topic={tag}&radius=36000&text_format=plain&order=id&omit=contributions,group_photo,approved,join_info,membership_dues,self,similar_groups,sponsors,simple_html_description,welcome_message".format(tag=tag)
-            run_import("groups", group_url, session, import_meetup_groups_query, meetup_key, {})
+            for t in tag:
+                group_url = "https://api.meetup.com/2/groups?topic={tag}&radius=36000&text_format=plain&order=id&omit=contributions,group_photo,approved,join_info,membership_dues,self,similar_groups,sponsors,simple_html_description,welcome_message".format(tag=t)
+                run_import("groups", group_url, session, import_meetup_groups_query, meetup_key, {})
 
 
 def run_import(type, url, session, query, meetup_key, params):

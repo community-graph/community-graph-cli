@@ -63,8 +63,10 @@ function getParameters(callback)  {
         }
       },
       tag: {
-        description: 'Search term for finding projects on GitHub',
-        required: true
+        description: 'Search term for use on GitHub/SO/Meetup (Ctrl + C when all tags added)',
+        required: true,
+        type: 'array',
+        minItems: 1
       },
       twitterSearch: {
         description: 'Search term for finding links on Twitter',
