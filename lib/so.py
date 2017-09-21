@@ -14,7 +14,7 @@ FOREACH (q_owner IN [o in [q.owner] WHERE o.user_id IS NOT NULL] |
   MERGE (owner:User:StackOverflow {id:q.owner.user_id}) ON CREATE SET owner.name = q.owner.display_name
   MERGE (owner)-[:POSTED]->(question)
 )
-FOREACH (tagName IN q.tags | MERGE (tag:Tag:StackOverflow {name:tagName}) MERGE (question)-[:TAGGED]->(tag))
+FOREACH (tagName IN q.tags | MERGE (tag:Tag{name:tagName}) SET tag:StackOverflow MERGE (question)-[:TAGGED]->(tag))
 FOREACH (a IN q.answers |
    MERGE (answer:Answer:Content:StackOverflow {id:a.answer_id})
    SET answer.accepted = a.is_accepted, answer.upVotes = a.up_vote_count, answer.downVotes = a.down_vote_count
@@ -37,8 +37,9 @@ def import_so(neo4j_url, neo4j_user, neo4j_pass, tag):
             has_more = True
 
             while has_more:
-                api_url = "https://api.stackexchange.com/2.2/questions?page={page}&pagesize={items}&order=asc&sort=creation&tagged={tag}&site=stackoverflow&filter=!5-i6Zw8Y)4W7vpy91PMYsKM-k9yzEsSC1_Uxlf".format(
+                api_url = "https://api.stackexchange.com/2.2/search?page={page}&pagesize={items}&order=asc&sort=creation&tagged={tag}&site=stackoverflow&filter=!5-i6Zw8Y)4W7vpy91PMYsKM-k9yzEsSC1_Uxlf".format(
                     tag=tag, page=page, items=items)
+                print("SO API URL: {url}".format(url=api_url))
                 #    if maxDate <> None:
                 #        api_url += "&min={maxDate}".format(maxDate=maxDate)
 

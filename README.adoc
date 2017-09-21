@@ -71,3 +71,4 @@ We'll be automating more of this so it's a more friendly user experience so chec
 * [ ] Install APOC on the Neo4j server
 * [ ] Run all the lambdas once on creation
 * [ ] Run the twitter lambda with `catch-up: false`
+

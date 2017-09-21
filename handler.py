@@ -46,6 +46,7 @@ def so_import(event, _):
     neo4j_password = decrypt_value(write_credentials['password'])
 
     tag = config["tag"]
+    print("Importing SO questions with tag: {tag}".format(tag = tag))
 
     so.import_so(neo4j_url=neo4j_url, neo4j_user=neo4j_user, neo4j_pass=neo4j_password, tag=tag)
 
