@@ -28,6 +28,13 @@ FOREACH (a IN q.answers |
 )
 """
 
+max_date_query = """\
+MATCH (question:Question:Content:StackOverflow)
+return question.created AS maxDate
+ORDER BY question.created  DESC
+limit 1
+"""
+
 
 def import_so(neo4j_url, neo4j_user, neo4j_pass, tag):
     with GraphDatabase.driver(neo4j_url, auth=basic_auth(neo4j_user, neo4j_pass)) as driver:
@@ -36,12 +43,14 @@ def import_so(neo4j_url, neo4j_user, neo4j_pass, tag):
             items = 100
             has_more = True
 
+            max_date = None
+            result = session.run(max_date_query)
+            if result.peek():
+                max_date = result.peek()["maxDate"] - (60 * 60)
+
             while has_more:
-                api_url = "https://api.stackexchange.com/2.2/search?page={page}&pagesize={items}&order=asc&sort=creation&tagged={tag}&site=stackoverflow&filter=!5-i6Zw8Y)4W7vpy91PMYsKM-k9yzEsSC1_Uxlf".format(
-                    tag=tag, page=page, items=items)
+                api_url = construct_uri(page, items, tag, max_date)
                 print("SO API URL: {url}".format(url=api_url))
-                #    if maxDate <> None:
-                #        api_url += "&min={maxDate}".format(maxDate=maxDate)
 
                 # Send GET request.
                 response = requests.get(api_url, headers={"accept": "application/json"})
@@ -63,3 +72,13 @@ def import_so(neo4j_url, neo4j_user, neo4j_pass, tag):
                 if json.get('backoff', None) is not None:
                     print("backoff", json['backoff'])
                     time.sleep(json['backoff'] + 5)
+
+
+def construct_uri(page, items, tag, max_date):
+    api_url = "https://api.stackexchange.com/2.2/search?page={page}&pagesize={items}&order=asc&sort=creation&tagged={tag}&site=stackoverflow&filter=!5-i6Zw8Y)4W7vpy91PMYsKM-k9yzEsSC1_Uxlf".format(
+        tag=tag, page=page, items=items)
+
+    if max_date is not None:
+        api_url += "&fromdate={max_date}".format(max_date=max_date)
+
+    return api_url
