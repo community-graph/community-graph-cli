@@ -6,7 +6,8 @@ var async   = require('async'),
     Serverless = require('serverless'),
     prompt = require('prompt'),
     AWS = require("aws-sdk"),
-    opn     = require('opn');
+    opn     = require('opn'),
+    commandLineCommands = require('command-line-commands');
 
 let rawParams = {};
 let communityGraphParams = {
@@ -290,46 +291,74 @@ function deployLambdas(callback) {
 }
 
 
+const validCommands = [ null, 'create', "dump-config", "update" ]
+const { command, argv } = commandLineCommands(validCommands)
+
 // MAIN
-async.waterfall([
-  welcomeToCommunityGraph,
-  getParameters,
-  function(callback) {
-    if(!rawParams.kmsKeyArn) {
+if(command == null) {
+    console.log("Usage: community-graph [create|update]");
+} else {
+    if(command == "create") {
         async.waterfall([
-            createKMSKey,
-            createKMSKeyAlias
-        ], callback);
-    } else {
-        callback(null)
-    }
-  },
-  function(callback) {
-    if(!rawParams.s3Bucket) {
+          welcomeToCommunityGraph,
+          getParameters,
+          function(callback) {
+            if(!rawParams.kmsKeyArn) {
+                async.waterfall([
+                    createKMSKey,
+                    createKMSKeyAlias
+                ], callback);
+            } else {
+                callback(null)
+            }
+          },
+          function(callback) {
+            if(!rawParams.s3Bucket) {
+                async.waterfall([
+                    createS3Bucket,
+                ], callback);
+            } else {
+                callback(null)
+            }
+          },
+          encryptMeetupApiKey,
+          encryptTwitterBearer,
+          encryptGitHubToken,
+          encryptWritePassword,
+          encryptReadOnlyPassword,
+          writeCommunityGraphJson
+        ], function (err, result) {
+            if (err) {
+              console.log("ERROR - exiting");
+              console.log(err);
+              process.exit(1);
+            } else {
+            if (result) {
+              var name = result.name || "";
+              console.log("\nThanks " + name + "! Please email " + chalk.underline("devrel@neo4j.com") + " with any questions or feedback.");
+              process.exit(0);
+            }
+          }
+        });
+    } else if(command == "update") {
         async.waterfall([
-            createS3Bucket,
-        ], callback);
-    } else {
-        callback(null)
+          welcomeToCommunityGraph,
+          deployLambdas
+        ], function (err, result) {
+            if (err) {
+              console.log("ERROR - exiting");
+              console.log(err);
+              process.exit(1);
+            } else {
+            if (result) {
+              var name = result.name || "";
+              console.log("\nThanks " + name + "! Please email " + chalk.underline("devrel@neo4j.com") + " with any questions or feedback.");
+              process.exit(0);
+            }
+          }
+        });
+    } else if(command == "dump-config") {
+        var config = JSON.parse(fs.readFileSync('communitygraph.json', 'utf8'));
+        console.log(JSON.stringify(config, null, 4));
     }
-  },
-//  deployLambdas
-  encryptMeetupApiKey,
-  encryptTwitterBearer,
-  encryptGitHubToken,
-  encryptWritePassword,
-  encryptReadOnlyPassword,
-  writeCommunityGraphJson
-], function (err, result) {
-    if (err) {
-      console.log("ERROR - exiting");
-      console.log(err);
-      process.exit(1);
-    } else {
-    if (result) {
-      var name = result.name || "";
-      console.log("\nThanks " + name + "! Please email " + chalk.underline("devrel@neo4j.com") + " with any questions or feedback.");
-      process.exit(0);
-    }
-  }
-});
+}
