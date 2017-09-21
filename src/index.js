@@ -142,7 +142,11 @@ function createKMSKeyAlias(callback) {
 
 function createS3Bucket(callback) {
     let s3BucketName = "marks-test-" + rawParams.communityName.toLowerCase();
-    var params = { Bucket: s3BucketName };
+    var params = {
+        Bucket: s3BucketName,
+        ACL: "public-read",
+        GrantRead: "*"
+    };
 
     s3.createBucket(params, function(err, data) {
         if(err) {

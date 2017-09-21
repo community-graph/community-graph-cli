@@ -23,10 +23,31 @@ provider:
         - ${self:custom.kmsKeyArn}
     - Effect: Allow
       Action:
-        - s3:PutObject
         - s3:GetObject
+        - s3:ListBucket
       Resource:
-        - arn:aws:s3:::${self:custom.s3Bucket}
+        - arn:aws:s3:::${self:custom.s3Bucket}/*
+    - Effect: Allow
+      Action:
+        - s3:PutObject
+      Resource:
+        - arn:aws:s3:::${self:custom.s3Bucket}/*
+
+resources:
+  Resources:
+    S3BucketPermissions:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        Bucket: ${self:custom.s3Bucket}
+        PolicyDocument:
+          Statement:
+            - Principal: "*"
+              Action:
+                - s3:GetObject
+              Effect: Allow
+              Sid: "AddPerm"
+              Resource: arn:aws:s3:::${self:custom.s3Bucket}/*
+
 
 package:
   exclude:
