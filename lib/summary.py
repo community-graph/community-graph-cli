@@ -103,13 +103,14 @@ def shorten_filter(value):
     else:
         return (value[:75] + '..') if len(value) > 75 else value
 
+
 @app.template_filter('stringseparate')
 def string_separate_filter(value):
     return ",".join(str(i) for i in value)
 
-def generate(url, user, password, title, short_name, logo_src):
 
-    with GraphDatabase.driver("bolt://{url}:7687".format(url=url), auth=(user, password)) as driver:
+def generate(url, user, password, title, short_name, logo_src):
+    with GraphDatabase.driver("bolt://{url}".format(url=url), auth=(user, password)) as driver:
         with driver.session() as session:
             github_records = session.read_transaction(lambda tx: list(tx.run(github_query)))
             twitter_records = session.read_transaction(lambda tx: list(tx.run(twitter_query)))

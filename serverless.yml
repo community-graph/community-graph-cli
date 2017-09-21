@@ -29,6 +29,13 @@ package:
 plugins:
   - serverless-python-requirements
 
+resources:
+  Resources:
+    S3BucketUpload:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${file(${env:CONFIG_FILE, 'communitygraph.json'}):s3Bucket}
+
 functions:
   page-summary:
       name: CommunityGraphCLI-${self:custom.communityName}-GeneratePageSummary
