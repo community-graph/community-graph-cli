@@ -91,82 +91,101 @@ query Repositories($searchTerm: String!, $cursor: String) {
 def import_github(neo4j_url, neo4j_user, neo4j_pass, tag, github_token):
     with GraphDatabase.driver(neo4j_url, auth=basic_auth(neo4j_user, neo4j_pass)) as driver:
         with driver.session() as session:
-            from_date = (datetime.datetime.now() - datetime.timedelta(days=90)).strftime("%Y-%m-%d")
+            for tags in chunker(tag, 5):
+                process_tag(github_token, session, tags)
 
-            print("Processing projects from {0}".format(from_date))
 
-            search = "{0} pushed:>{1}".format(tag, from_date)
-            cursor = None
-            has_more = True
+def process_tag(github_token, session, tags):
+    tag = " OR ".join(tags)
+    from_date = (datetime.datetime.now() - datetime.timedelta(days=90)).strftime("%Y-%m-%d")
+    print("Processing projects from {0}. Tag: [{1}]".format(from_date, tag))
+    search = "{0} pushed:>{1}".format(tag, from_date)
+    print("Search term: {0}".format(search))
+    cursor = None
+    has_more = True
+    while has_more:
+        apiUrl = "https://api.github.com/graphql"
 
-            while has_more:
-                apiUrl = "https://api.github.com/graphql"
+        data = {
+            "query": graphql_query,
+            "variables": {"searchTerm": search, "cursor": cursor}
+        }
 
-                data = {
-                    "query": graphql_query,
-                    "variables": {"searchTerm": search, "cursor": cursor}
+        bearer_token = "bearer {token}".format(token=github_token)
+        response = requests.post(apiUrl,
+                                 data=json.dumps(data),
+                                 headers={"accept": "application/json",
+                                          "Authorization": bearer_token})
+
+        if response.status_code != 200:
+            print("Request failed with status code {code}".format(code=response.status_code))
+            print(response.text)
+            return
+
+        r = response.json()
+        if not r["data"]:
+            print("Response doesn't contain a 'data' section so we can't continue")
+            print("Params: {0}".format(tags))
+            print(response.text)
+            return
+
+        the_json = []
+        search_section = r["data"]["search"]
+        for node in search_section["nodes"]:
+            languages = [n["name"] for n in node["languages"]["nodes"]]
+            default_branch_ref = node.get("defaultBranchRef") if node.get("defaultBranchRef") else {}
+            full_name = "{login}/{name}".format(name=node["name"], login=node["owner"]["login"])
+
+            if not node["isPrivate"]:
+                params = {
+                    "id": node["databaseId"],
+                    "isPrivate": node["isPrivate"],
+                    "name": node["name"],
+                    "full_name": full_name,
+                    "created_at": node["createdAt"],
+                    "pushed_at": node["pushedAt"],
+                    "updated_at": node["updatedAt"],
+                    "size": node["diskUsage"],
+                    "homepage": node["homepageUrl"],
+                    "stargazers_count": node["forks"]["totalCount"],
+                    "forks_count": node["stargazers"]["totalCount"],
+                    "watchers": node["watchers"]["totalCount"],
+                    "owner": {
+                        "id": node["owner"].get("databaseId", ""),
+                        "login": node["owner"]["login"],
+                        "avatarUrl": node["owner"]["avatarUrl"],
+                        "name": node["owner"].get("name", ""),
+                        "type": node["owner"]["__typename"],
+                        "location": node["owner"].get("location", "")
+                    },
+                    "default_branch": default_branch_ref.get("name", ""),
+                    "open_issues": node["issues"]["totalCount"],
+                    "description": node["description"],
+                    "html_url": node["url"],
+                    "language": languages[0] if len(languages) > 0 else ""
                 }
 
-                bearer_token = "bearer {token}".format(token=github_token)
-                response = requests.post(apiUrl,
-                                         data=json.dumps(data),
-                                         headers={"accept": "application/json",
-                                                  "Authorization": bearer_token})
-                r = response.json()
+                the_json.append(params)
+            else:
+                print("Skipping private repository", full_name)
 
-                the_json = []
-                search_section = r["data"]["search"]
-                for node in search_section["nodes"]:
-                    languages = [n["name"] for n in node["languages"]["nodes"]]
-                    default_branch_ref = node.get("defaultBranchRef") if node.get("defaultBranchRef") else {}
-                    full_name = "{login}/{name}".format(name=node["name"], login=node["owner"]["login"])
+        has_more = search_section["pageInfo"]["hasNextPage"]
+        cursor = search_section["pageInfo"]["endCursor"]
 
-                    if not node["isPrivate"]:
-                        params = {
-                            "id": node["databaseId"],
-                            "isPrivate": node["isPrivate"],
-                            "name": node["name"],
-                            "full_name": full_name,
-                            "created_at": node["createdAt"],
-                            "pushed_at": node["pushedAt"],
-                            "updated_at": node["updatedAt"],
-                            "size": node["diskUsage"],
-                            "homepage": node["homepageUrl"],
-                            "stargazers_count": node["forks"]["totalCount"],
-                            "forks_count": node["stargazers"]["totalCount"],
-                            "watchers": node["watchers"]["totalCount"],
-                            "owner": {
-                                "id": node["owner"].get("databaseId", ""),
-                                "login": node["owner"]["login"],
-                                "avatarUrl": node["owner"]["avatarUrl"],
-                                "name": node["owner"].get("name", ""),
-                                "type": node["owner"]["__typename"],
-                                "location": node["owner"].get("location", "")
-                            },
-                            "default_branch": default_branch_ref.get("name", ""),
-                            "open_issues": node["issues"]["totalCount"],
-                            "description": node["description"],
-                            "html_url": node["url"],
-                            "language": languages[0] if len(languages) > 0 else ""
-                        }
+        result = session.run(import_query, {"json": {"items": the_json}})
+        print(result.consume().counters)
 
-                        the_json.append(params)
-                    else:
-                        print("Skipping private repository", full_name)
+        reset_at = r["data"]["rateLimit"]["resetAt"]
+        time_until_reset = (parse(reset_at) - datetime.datetime.now(timezone.utc)).total_seconds()
 
-                has_more = search_section["pageInfo"]["hasNextPage"]
-                cursor = search_section["pageInfo"]["endCursor"]
+        if r["data"]["rateLimit"]["remaining"] <= 0:
+            time.sleep(time_until_reset)
 
-                result = session.run(import_query, {"json": {"items": the_json}})
-                print(result.consume().counters)
+        print("Reset at:", time_until_reset,
+              "has_more", has_more,
+              "cursor", cursor,
+              "repositoryCount", search_section["repositoryCount"])
 
-                reset_at = r["data"]["rateLimit"]["resetAt"]
-                time_until_reset = (parse(reset_at) - datetime.datetime.now(timezone.utc)).total_seconds()
 
-                if r["data"]["rateLimit"]["remaining"] <= 0:
-                    time.sleep(time_until_reset)
-
-                print("Reset at:", time_until_reset,
-                      "has_more", has_more,
-                      "cursor", cursor,
-                      "repositoryCount", search_section["repositoryCount"])
+def chunker(seq, size):
+    return (seq[pos:pos + size] for pos in range(0, len(seq), size))

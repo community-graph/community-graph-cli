@@ -50,7 +50,6 @@ def import_so(neo4j_url, neo4j_user, neo4j_pass, tag, so_key):
 
             while has_more:
                 api_url = construct_uri(page, items, tag, max_date, so_key)
-                print("SO API URL: {url}".format(url=api_url))
 
                 # Send GET request.
                 response = requests.get(api_url, headers={"accept": "application/json"})
