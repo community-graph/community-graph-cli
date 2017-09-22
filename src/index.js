@@ -18,8 +18,10 @@ let communityGraphParams = {
     }
 };
 
-let kms = new AWS.KMS({ 'region': 'us-east-1' });
-let s3 = new AWS.S3({ 'region': 'us-east-1' });
+let regionParams = { 'region': 'us-east-1' }
+let kms = new AWS.KMS(regionParams);
+let s3 = new AWS.S3(regionParams);
+var ec2 = new AWS.EC2(regionParams);
 
 function welcomeToCommunityGraph(callback) {
     console.log("Hello and welcome to the community graph!")
@@ -317,7 +319,7 @@ function deployLambdas(callback) {
 }
 
 
-const validCommands = [null, 'create', "dump-config", "update", "encrypt"]
+const validCommands = [null, 'create', "dump-config", "update", "encrypt", "create-neo4j-server"]
 const { command, argv } = commandLineCommands(validCommands)
 
 // MAIN
@@ -403,5 +405,63 @@ if (command == null) {
                 .then(data => console.log(data.CiphertextBlob.toString('base64')))
                 .catch(err => console.log(err, err.stack));
         }
+    } else if(command == "create-neo4j-server") {
+        console.log("Creating a Neo4j server"); 
+
+        // let params = { KeyName: "community-graph-nahi", DryRun: true }
+        // ec2.createKeyPair(params).promise()
+        //     .then(data => console.log(data))
+        //     .catch(err => console.log(err, err.stack));
+
+        let args = parseArgs(argv);
+        let dryRun = "dry-run" in args;
+        console.log("Dry run?:" + dryRun)
+
+        let serverParams = {};
+
+        let params = { Description: "Community Graph Security Group", GroupName: "community-graph-security-group2", DryRun: dryRun }
+        ec2.createSecurityGroup(params).promise()
+            .then(data => {
+                console.log("Created Group Id:" + data.GroupId);
+                serverParams["groupId"] = data.GroupId;
+                var ports = [7474, 7473, 7687];
+                return Promise.all(ports.map(function (port) {
+                    let params = { 
+                        GroupId: data.GroupId, 
+                        IpProtocol: "tcp", 
+                        FromPort: port,
+                        ToPort: port,
+                        CidrIp: "0.0.0.0/0",
+                        DryRun: dryRun
+                    };
+                    return ec2.authorizeSecurityGroupIngress(params).promise();
+                }));
+            })
+            .then(data => {
+                console.log(data);
+                let params = {
+                    ImageId: "ami-f03c4fe6",
+                    MinCount: 1,
+                    MaxCount: 1,
+                    InstanceType: "m3.medium",
+                    SecurityGroupIds: [serverParams.groupId]
+                };
+                return ec2.runInstances(params).promise();
+            })
+            .then(data => {
+                let ourInstance = data.Instances[0];
+                console.log("Instance Id:" + ourInstance.InstanceId);
+
+                let params = {
+                    InstanceIds: [ourInstance.InstanceId]
+                };
+                return ec2.waitFor("instanceRunning", params).promise();
+            })
+            .then(data => {
+                let reservations = data.Reservations;
+                let instances = reservations[0].Instances;
+                console.log(instances[0].PublicDnsName)
+            })
+            .catch(err => console.log(err, err.stack));
     }
 }
