@@ -1,118 +1,118 @@
-var async   = require('async'),
-    https   = require('follow-redirects').https,
-    http    = require('http'),
-    fs      = require('fs'),
-    chalk   = require('chalk'),
+var async = require('async'),
+    https = require('follow-redirects').https,
+    http = require('http'),
+    fs = require('fs'),
+    chalk = require('chalk'),
     Serverless = require('serverless'),
     prompt = require('prompt'),
     AWS = require("aws-sdk"),
-    opn     = require('opn'),
+    opn = require('opn'),
     commandLineCommands = require('command-line-commands'),
     parseArgs = require('minimist');
 
 let rawParams = {};
 let communityGraphParams = {
     credentials: {
-        write: { },
-        readonly: { }
+        write: {},
+        readonly: {}
     }
 };
 
-let kms = new AWS.KMS({'region': 'us-east-1'});
-let s3 = new AWS.S3({'region': 'us-east-1'});
+let kms = new AWS.KMS({ 'region': 'us-east-1' });
+let s3 = new AWS.S3({ 'region': 'us-east-1' });
 
 function welcomeToCommunityGraph(callback) {
-  console.log("Hello and welcome to the community graph!")
-  return callback(null);
+    console.log("Hello and welcome to the community graph!")
+    return callback(null);
 }
 
-function getParameters(callback)  {
+function getParameters(callback) {
     console.log("Provide us some parameters so we can get this show on the road:")
     prompt.start();
 
     var schema = {
-    properties: {
-      communityName: {
-        description: 'Name of your community',
-        required: true
-      },
-      serverUrl: {
-        description: "URL of your Neo4j server (leave blank if you don't have one, and one will be created)",
-      },
-      serverUsername: {
-        description: 'Neo4j server username',
-        ask: function() {
-          return prompt.history('serverUrl').value != "";
+        properties: {
+            communityName: {
+                description: 'Name of your community',
+                required: true
+            },
+            serverUrl: {
+                description: "URL of your Neo4j server (leave blank if you don't have one, and one will be created)",
+            },
+            serverUsername: {
+                description: 'Neo4j server username',
+                ask: function () {
+                    return prompt.history('serverUrl').value != "";
+                }
+            },
+            serverPassword: {
+                description: 'Neo4j server password',
+                ask: function () {
+                    return prompt.history('serverUrl').value != "";
+                }
+            },
+            readOnlyServerUsername: {
+                description: 'Neo4j read only server username',
+                ask: function () {
+                    return prompt.history('serverUrl').value != "";
+                }
+            },
+            readOnlyServerPassword: {
+                description: 'Neo4j read only server password',
+                ask: function () {
+                    return prompt.history('serverUrl').value != "";
+                }
+            },
+            tag: {
+                description: 'Search term for use on GitHub/SO/Meetup (Ctrl + C when all tags added)',
+                required: true,
+                type: 'array',
+                minItems: 1
+            },
+            twitterSearch: {
+                description: 'Search term for finding links on Twitter',
+                required: true
+            },
+            twitterBearer: {
+                description: 'Twitter Bearer',
+                required: true
+            },
+            githubToken: {
+                description: 'GitHub Token',
+                required: true
+            },
+            meetupApiKey: {
+                description: 'Meetup API key',
+                required: true
+            },
+            stackOverflowApiKey: {
+                description: 'StackOverflow API key',
+                required: true
+            },
+            s3Bucket: {
+                description: "Name of S3 bucket where the dashboard should be generated (leave blank if you don't have one, and one will be created)",
+            },
+            logo: {
+                description: 'Link to a logo to use for your community graph',
+            },
+            kmsKeyArn: {
+                description: "KMS Key Arn (leave blank if you don't have one, and one will be created)",
+            },
         }
-      },
-      serverPassword: {
-        description: 'Neo4j server password',
-        ask: function() {
-          return prompt.history('serverUrl').value != "";
-        }
-      },
-      readOnlyServerUsername: {
-        description: 'Neo4j read only server username',
-        ask: function() {
-          return prompt.history('serverUrl').value != "";
-        }
-      },
-      readOnlyServerPassword: {
-        description: 'Neo4j read only server password',
-        ask: function() {
-          return prompt.history('serverUrl').value != "";
-        }
-      },
-      tag: {
-        description: 'Search term for use on GitHub/SO/Meetup (Ctrl + C when all tags added)',
-        required: true,
-        type: 'array',
-        minItems: 1
-      },
-      twitterSearch: {
-        description: 'Search term for finding links on Twitter',
-        required: true
-      },
-      twitterBearer: {
-        description: 'Twitter Bearer',
-        required: true
-      },
-      githubToken: {
-        description: 'GitHub Token',
-        required: true
-      },
-      meetupApiKey: {
-        description: 'Meetup API key',
-        required: true
-      },
-      stackOverflowApiKey: {
-        description: 'StackOverflow API key',
-        required: true
-      },
-      s3Bucket: {
-        description: "Name of S3 bucket where the dashboard should be generated (leave blank if you don't have one, and one will be created)",
-      },
-      logo: {
-        description: 'Link to a logo to use for your community graph',
-      },
-      kmsKeyArn: {
-        description: "KMS Key Arn (leave blank if you don't have one, and one will be created)",
-      },
-    }
-  };
+    };
 
-  prompt.get(schema, function (err, result) {
-    //
-    // Log the results.
-    //
-    console.log('Command-line input received:');
-    console.log('  community name: ' + result.communityName);
-    console.log('  serverUrl: ' + result.serverUrl);
-    console.log('  serverUsername: ' + result.serverUsername);
-    console.log('  serverPassword: ' + result.serverPassword);
-    rawParams = result;
-    return callback(null);
-  });
+    prompt.get(schema, function (err, result) {
+        //
+        // Log the results.
+        //
+        console.log('Command-line input received:');
+        console.log('  community name: ' + result.communityName);
+        console.log('  serverUrl: ' + result.serverUrl);
+        console.log('  serverUsername: ' + result.serverUsername);
+        console.log('  serverPassword: ' + result.serverPassword);
+        rawParams = result;
+        return callback(null);
+    });
 
 }
 
@@ -156,8 +156,8 @@ function createS3Bucket(callback) {
         GrantRead: "*"
     };
 
-    s3.createBucket(params, function(err, data) {
-        if(err) {
+    s3.createBucket(params, function (err, data) {
+        if (err) {
             console.log(err, err.stack);
             callback(null);
         } else {
@@ -175,7 +175,7 @@ function encryptGitHubToken(callback) {
         Plaintext: valueToEncrypt
     };
 
-    kms.encrypt(params, function(err, data) {
+    kms.encrypt(params, function (err, data) {
         if (err) {
             console.log(err, err.stack);
             callback(null);
@@ -194,7 +194,7 @@ function encryptMeetupApiKey(callback) {
         Plaintext: valueToEncrypt
     };
 
-    kms.encrypt(params, function(err, data) {
+    kms.encrypt(params, function (err, data) {
         if (err) {
             console.log(err, err.stack);
             callback(null);
@@ -213,7 +213,7 @@ function encryptStackOverflowApiKey(callback) {
         Plaintext: valueToEncrypt
     };
 
-    kms.encrypt(params, function(err, data) {
+    kms.encrypt(params, function (err, data) {
         if (err) {
             console.log(err, err.stack);
             callback(null);
@@ -232,7 +232,7 @@ function encryptTwitterBearer(callback) {
         Plaintext: valueToEncrypt
     };
 
-    kms.encrypt(params, function(err, data) {
+    kms.encrypt(params, function (err, data) {
         if (err) {
             console.log(err, err.stack);
             callback(null);
@@ -251,7 +251,7 @@ function encryptWritePassword(callback) {
         Plaintext: valueToEncrypt
     };
 
-    kms.encrypt(params, function(err, data) {
+    kms.encrypt(params, function (err, data) {
         if (err) {
             console.log(err, err.stack);
             callback(null);
@@ -270,7 +270,7 @@ function encryptReadOnlyPassword(callback) {
         Plaintext: valueToEncrypt
     };
 
-    kms.encrypt(params, function(err, data) {
+    kms.encrypt(params, function (err, data) {
         if (err) {
             console.log(err, err.stack);
             callback(null);
@@ -302,111 +302,106 @@ function writeCommunityGraphJson(callback) {
 }
 
 function deployLambdas(callback) {
-  const serverless = new Serverless({});
-  const CLI = require('serverless/lib/classes/CLI');
+    const serverless = new Serverless({});
+    const CLI = require('serverless/lib/classes/CLI');
 
-  CLI.prototype.processInput = function() {
-    return { commands: ['deploy'], options: { help: false } };
-  };
+    CLI.prototype.processInput = function () {
+        return { commands: ['deploy'], options: { help: false } };
+    };
 
-  serverless.cli = CLI;
+    serverless.cli = CLI;
 
-  return serverless.init()
-  .then(() => serverless.run())
-  .catch((ex) => { console.error(ex); });
+    return serverless.init()
+        .then(() => serverless.run())
+        .catch((ex) => { console.error(ex); });
 }
 
 
-const validCommands = [ null, 'create', "dump-config", "update", "encrypt" ]
+const validCommands = [null, 'create', "dump-config", "update", "encrypt"]
 const { command, argv } = commandLineCommands(validCommands)
 
 // MAIN
-if(command == null) {
+if (command == null) {
     console.log("Usage: community-graph [create|update|dump-config|encrypt]");
 } else {
-    if(command == "create") {
+    if (command == "create") {
         async.waterfall([
-          welcomeToCommunityGraph,
-          getParameters,
-          function(callback) {
-            if(!rawParams.kmsKeyArn) {
-                async.waterfall([
-                    createKMSKey,
-                    createKMSKeyAlias
-                ], callback);
-            } else {
-                callback(null)
-            }
-          },
-          function(callback) {
-            if(!rawParams.s3Bucket) {
-                async.waterfall([
-                    createS3Bucket,
-                ], callback);
-            } else {
-                callback(null)
-            }
-          },
-          encryptMeetupApiKey,
-          encryptTwitterBearer,
-          encryptGitHubToken,
-          encryptStackOverflowApiKey,
-          encryptWritePassword,
-          encryptReadOnlyPassword,
-          writeCommunityGraphJson
+            welcomeToCommunityGraph,
+            getParameters,
+            function (callback) {
+                if (!rawParams.kmsKeyArn) {
+                    async.waterfall([
+                        createKMSKey,
+                        createKMSKeyAlias
+                    ], callback);
+                } else {
+                    callback(null)
+                }
+            },
+            function (callback) {
+                if (!rawParams.s3Bucket) {
+                    async.waterfall([
+                        createS3Bucket,
+                    ], callback);
+                } else {
+                    callback(null)
+                }
+            },
+            encryptMeetupApiKey,
+            encryptTwitterBearer,
+            encryptGitHubToken,
+            encryptStackOverflowApiKey,
+            encryptWritePassword,
+            encryptReadOnlyPassword,
+            writeCommunityGraphJson
         ], function (err, result) {
             if (err) {
-              console.log("ERROR - exiting");
-              console.log(err);
-              process.exit(1);
+                console.log("ERROR - exiting");
+                console.log(err);
+                process.exit(1);
             } else {
-            if (result) {
-              var name = result.name || "";
-              console.log("\nThanks " + name + "! Please email " + chalk.underline("devrel@neo4j.com") + " with any questions or feedback.");
-              process.exit(0);
+                if (result) {
+                    var name = result.name || "";
+                    console.log("\nThanks " + name + "! Please email " + chalk.underline("devrel@neo4j.com") + " with any questions or feedback.");
+                    process.exit(0);
+                }
             }
-          }
         });
-    } else if(command == "update") {
+    } else if (command == "update") {
         async.waterfall([
-          welcomeToCommunityGraph,
-          deployLambdas
+            welcomeToCommunityGraph,
+            deployLambdas
         ], function (err, result) {
             if (err) {
-              console.log("ERROR - exiting");
-              console.log(err);
-              process.exit(1);
+                console.log("ERROR - exiting");
+                console.log(err);
+                process.exit(1);
             } else {
-            if (result) {
-              var name = result.name || "";
-              console.log("\nThanks " + name + "! Please email " + chalk.underline("devrel@neo4j.com") + " with any questions or feedback.");
-              process.exit(0);
+                if (result) {
+                    var name = result.name || "";
+                    console.log("\nThanks " + name + "! Please email " + chalk.underline("devrel@neo4j.com") + " with any questions or feedback.");
+                    process.exit(0);
+                }
             }
-          }
         });
-    } else if(command == "dump-config") {
+    } else if (command == "dump-config") {
         var config = JSON.parse(fs.readFileSync('communitygraph.json', 'utf8'));
         console.log(JSON.stringify(config, null, 4));
-    } else if(command == "encrypt") {
+    } else if (command == "encrypt") {
         var config = JSON.parse(fs.readFileSync('communitygraph.json', 'utf8'));
         let kmsKey = config["credentials"]["keyArn"]
         console.log("Encrypting with KMS Key: " + kmsKey);
 
         let args = parseArgs(argv);
-        if(!args["value"]) {
+        if (!args["value"]) {
             console.log("Usage: community-graph encrypt --value [Unencrypted Value]")
         } else {
             let valueToEncrypt = args["value"];
-            let params = { KeyId: kmsKey, Plaintext: valueToEncrypt};
+            let params = { KeyId: kmsKey, Plaintext: valueToEncrypt };
 
-            kms.encrypt(params, function(err, data) {
-                if (err) {
-                    console.log(err, err.stack);
-                }
-                else {
-                    console.log(data.CiphertextBlob.toString('base64'));
-                }
-            });
+            kms.encrypt(params).promise()
+                .then(data => console.log(data.CiphertextBlob.toString('base64')))
+                .catch(err => console.log(err, err.stack));
         }
     }
 }
