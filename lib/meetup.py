@@ -37,7 +37,7 @@ FOREACH (organizer IN [o in [g.organizer] WHERE g.organizer IS NOT NULL] |
   MERGE (owner)-[:CREATED]->(group)
 )
 
-FOREACH (t IN g.topics | MERGE (tag:Tag:Meetup {name:t.urlkey}) ON CREATE SET tag.id = t.id, tag.description=t.name MERGE (group)-[:TAGGED]->(tag))
+FOREACH (t IN g.topics | MERGE (tag:Tag {name:t.urlkey}) ON CREATE SET tag.id = t.id, tag.description=t.name ON MATCH SET tag:Meetup MERGE (group)-[:TAGGED]->(tag))
 WITH group WHERE (group.title + group.text) =~ "(?is).*(graph|neo4j).*"
 SET group:Graph
 """
@@ -49,15 +49,12 @@ def import_events(neo4j_url, neo4j_user, neo4j_pass, meetup_key):
 
     with GraphDatabase.driver(neo4j_url, auth=basic_auth(neo4j_user, neo4j_pass)) as driver:
         with driver.session() as session:
-            groups = []
             result = session.run("MATCH (g:Group:Meetup) RETURN g.id as id, g.key as key")
-            for record in result:
-                if record["id"] != None:
-                    group = record["id"]
-                    groups += [str(group)]
-            event_url = "https://api.meetup.com/2/events?group_id={groups}&status=upcoming,past&text_format=plain&order=time&omit=fee,photo_sample,rsvp_rules,rsvp_sample&fields=event_hosts".format(
-                groups=",".join(groups))
-            run_import("events", event_url, session, import_meetup_events_query, meetup_key, {})
+            groups = [str(record["id"]) for record in result if record["id"]]
+            for groups_chunk in chunker(groups, 100):
+                event_url = "https://api.meetup.com/2/events?group_id={groups}&status=upcoming,past&text_format=plain&order=time&omit=fee,photo_sample,rsvp_rules,rsvp_sample&fields=event_hosts".format(
+                    groups=",".join(groups_chunk))
+                run_import("events", event_url, session, import_meetup_events_query, meetup_key, {})
 
 
 def import_groups(neo4j_url, neo4j_user, neo4j_pass, tag, meetup_key):
@@ -69,8 +66,13 @@ def import_groups(neo4j_url, neo4j_user, neo4j_pass, tag, meetup_key):
     with GraphDatabase.driver(neo4j_url, auth=basic_auth(neo4j_user, neo4j_pass)) as driver:
         with driver.session() as session:
             for t in tag:
-                group_url = "https://api.meetup.com/2/groups?topic={tag}&radius=36000&text_format=plain&order=id&omit=contributions,group_photo,approved,join_info,membership_dues,self,similar_groups,sponsors,simple_html_description,welcome_message".format(tag=t)
+                group_url = "https://api.meetup.com/2/groups?topic={tag}&radius=36000&text_format=plain&order=id&omit=contributions,group_photo,approved,join_info,membership_dues,self,similar_groups,sponsors,simple_html_description,welcome_message".format(
+                    tag=t)
                 run_import("groups", group_url, session, import_meetup_groups_query, meetup_key, {})
+
+
+def chunker(seq, size):
+    return (seq[pos:pos + size] for pos in range(0, len(seq), size))
 
 
 def run_import(type, url, session, query, meetup_key, params):
@@ -83,7 +85,9 @@ def run_import(type, url, session, query, meetup_key, params):
 
         response = requests.get(api_url, headers={"accept": "application/json"})
         if response.status_code != 200:
+            print("Request failed with status code {code}".format(code=response.status_code))
             print(response.text)
+            return
 
         rate_remain = int(response.headers['X-RateLimit-Remaining'])
         rate_reset = int(response.headers['X-RateLimit-Reset'])
@@ -99,7 +103,8 @@ def run_import(type, url, session, query, meetup_key, params):
             print(result.consume().counters)
             page = page + 1
 
-        print(type, "results", len(results), "has_more", has_more, "quota", rate_remain, "reset (s)", rate_reset, "page", page)
+        print(type, "results", len(results), "has_more", has_more, "quota", rate_remain, "reset (s)", rate_reset,
+              "page", page)
         time.sleep(1)
         if rate_remain <= 0:
             time.sleep(rate_reset)

@@ -7,7 +7,8 @@ var async   = require('async'),
     prompt = require('prompt'),
     AWS = require("aws-sdk"),
     opn     = require('opn'),
-    commandLineCommands = require('command-line-commands');
+    commandLineCommands = require('command-line-commands'),
+    parseArgs = require('minimist');
 
 let rawParams = {};
 let communityGraphParams = {
@@ -316,12 +317,12 @@ function deployLambdas(callback) {
 }
 
 
-const validCommands = [ null, 'create', "dump-config", "update" ]
+const validCommands = [ null, 'create', "dump-config", "update", "encrypt" ]
 const { command, argv } = commandLineCommands(validCommands)
 
 // MAIN
 if(command == null) {
-    console.log("Usage: community-graph [create|update]");
+    console.log("Usage: community-graph [create|update|dump-config|encrypt]");
 } else {
     if(command == "create") {
         async.waterfall([
@@ -386,5 +387,26 @@ if(command == null) {
     } else if(command == "dump-config") {
         var config = JSON.parse(fs.readFileSync('communitygraph.json', 'utf8'));
         console.log(JSON.stringify(config, null, 4));
+    } else if(command == "encrypt") {
+        var config = JSON.parse(fs.readFileSync('communitygraph.json', 'utf8'));
+        let kmsKey = config["credentials"]["keyArn"]
+        console.log("Encrypting with KMS Key: " + kmsKey);
+
+        let args = parseArgs(argv);
+        if(!args["value"]) {
+            console.log("Usage: community-graph encrypt --value [Unencrypted Value]")
+        } else {
+            let valueToEncrypt = args["value"];
+            let params = { KeyId: kmsKey, Plaintext: valueToEncrypt};
+
+            kms.encrypt(params, function(err, data) {
+                if (err) {
+                    console.log(err, err.stack);
+                }
+                else {
+                    console.log(data.CiphertextBlob.toString('base64'));
+                }
+            });
+        }
     }
 }
