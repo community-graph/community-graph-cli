@@ -84,6 +84,10 @@ function getParameters(callback)  {
         description: 'Meetup API key',
         required: true
       },
+      stackOverflowApiKey: {
+        description: 'StackOverflow API key',
+        required: true
+      },
       s3Bucket: {
         description: "Name of S3 bucket where the dashboard should be generated (leave blank if you don't have one, and one will be created)",
       },
@@ -196,6 +200,25 @@ function encryptMeetupApiKey(callback) {
         }
         else {
             communityGraphParams.credentials.meetupApiKey = data.CiphertextBlob.toString('base64');
+            callback(null);
+        }
+    });
+}
+
+function encryptStackOverflowApiKey(callback) {
+    let valueToEncrypt = rawParams.stackOverflowApiKey;
+    var params = {
+        KeyId: rawParams.kmsKeyArn,
+        Plaintext: valueToEncrypt
+    };
+
+    kms.encrypt(params, function(err, data) {
+        if (err) {
+            console.log(err, err.stack);
+            callback(null);
+        }
+        else {
+            communityGraphParams.credentials.stackOverflowApiKey = data.CiphertextBlob.toString('base64');
             callback(null);
         }
     });
@@ -326,6 +349,7 @@ if(command == null) {
           encryptMeetupApiKey,
           encryptTwitterBearer,
           encryptGitHubToken,
+          encryptStackOverflowApiKey,
           encryptWritePassword,
           encryptReadOnlyPassword,
           writeCommunityGraphJson

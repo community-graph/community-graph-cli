@@ -41,14 +41,17 @@ def so_import(event, _):
 
     neo4j_url = "bolt://{url}".format(url=config.get("serverUrl", "localhost"))
 
-    write_credentials = config["credentials"]["write"]
+    credentials = config["credentials"]
+    write_credentials = credentials["write"]
     neo4j_user = write_credentials.get('user', "neo4j")
     neo4j_password = decrypt_value(write_credentials['password'])
+
+    so_key = decrypt_value(credentials["stackOverflowApiKey"])
 
     tag = ";".join(config["tag"])
     print("Importing SO questions with tag: {tag}".format(tag = tag))
 
-    so.import_so(neo4j_url=neo4j_url, neo4j_user=neo4j_user, neo4j_pass=neo4j_password, tag=tag)
+    so.import_so(neo4j_url=neo4j_url, neo4j_user=neo4j_user, neo4j_pass=neo4j_password, tag=tag, so_key = so_key)
 
 
 def meetup_events_import(event, _):

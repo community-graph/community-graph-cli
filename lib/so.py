@@ -36,7 +36,7 @@ limit 1
 """
 
 
-def import_so(neo4j_url, neo4j_user, neo4j_pass, tag):
+def import_so(neo4j_url, neo4j_user, neo4j_pass, tag, so_key):
     with GraphDatabase.driver(neo4j_url, auth=basic_auth(neo4j_user, neo4j_pass)) as driver:
         with driver.session() as session:
             page = 1
@@ -49,7 +49,7 @@ def import_so(neo4j_url, neo4j_user, neo4j_pass, tag):
                 max_date = result.peek()["maxDate"] - (60 * 60)
 
             while has_more:
-                api_url = construct_uri(page, items, tag, max_date)
+                api_url = construct_uri(page, items, tag, max_date, so_key)
                 print("SO API URL: {url}".format(url=api_url))
 
                 # Send GET request.
@@ -74,9 +74,9 @@ def import_so(neo4j_url, neo4j_user, neo4j_pass, tag):
                     time.sleep(json['backoff'] + 5)
 
 
-def construct_uri(page, items, tag, max_date):
-    api_url = "https://api.stackexchange.com/2.2/search?page={page}&pagesize={items}&order=asc&sort=creation&tagged={tag}&site=stackoverflow&filter=!5-i6Zw8Y)4W7vpy91PMYsKM-k9yzEsSC1_Uxlf".format(
-        tag=tag, page=page, items=items)
+def construct_uri(page, items, tag, max_date, so_key):
+    api_url = "https://api.stackexchange.com/2.2/search?page={page}&pagesize={items}&order=asc&sort=creation&tagged={tag}&site=stackoverflow&key={key}".format(
+        tag=tag, page=page, items=items, key=so_key)
 
     if max_date is not None:
         api_url += "&fromdate={max_date}".format(max_date=max_date)
