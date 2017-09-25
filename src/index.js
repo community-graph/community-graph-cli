@@ -105,10 +105,7 @@ function getParameters(callback) {
 
     prompt.get(schema, function (err, result) {
         console.log('Command-line input received:');
-        console.log('  community name: ' + result.communityName);
-        console.log('  serverUrl: ' + result.serverUrl);
-        console.log('  serverUsername: ' + result.serverUsername);
-        console.log('  serverPassword: ' + result.serverPassword);
+        console.log(result);
         rawParams = result;
         return callback(null);
     });
@@ -130,7 +127,7 @@ function createKMSKeyAlias(callback) {
     let kmsKeyArn = rawParams.kmsKeyArn;
     let communityName = rawParams.communityName;
 
-    _createKMSKeyAlias(communityName, kmsKeyArn).promise()
+    _createKMSKeyAlias(communityName, kmsKeyArn)
         .then(data => {
             callback(null);
         }).catch(err => {
@@ -294,8 +291,8 @@ function writeCommunityGraphJson(callback) {
     communityGraphParams.twitterSearch = rawParams.twitterSearch;
 
     communityGraphParams.credentials.keyArn = rawParams.kmsKeyArn;
-    communityGraphParams.credentials.readonly.user = rawParams.readOnlyServerUsername;
-    communityGraphParams.credentials.write.user = rawParams.serverUsername;
+    communityGraphParams.credentials.readonly.user = rawParams.readOnlyServerUsername || "neo4j";
+    communityGraphParams.credentials.write.user = rawParams.serverUsername || "neo4j";
 
     try {
         fs.writeFileSync("communitygraph.json", JSON.stringify(communityGraphParams));
@@ -354,8 +351,17 @@ if (command == null) {
             encryptTwitterBearer,
             encryptGitHubToken,
             encryptStackOverflowApiKey,
-            encryptWritePassword,
-            encryptReadOnlyPassword,
+            function (callback) {
+                if(!rawParams.serverUrl) {
+                    console.log("No server URL provided so no password encryption for now");
+                    callback(null);
+                } else {
+                    async.waterfall([
+                        encryptWritePassword,
+                        encryptReadOnlyPassword
+                    ], callback)
+                }
+            },            
             writeCommunityGraphJson
         ], function (err, result) {
             if (err) {
@@ -466,34 +472,29 @@ if (command == null) {
             })
             .catch(err => console.log(err, err.stack));
     } else if (command == "create-s3-bucket") {
-        let args = parseArgs(argv);
-        if (!args["communityName"]) {
-            console.log("Usage: community-graph create-s3-bucket --communityName [nameOfYourCommunity]")
-        } else {
-            let communityName = args["communityName"];
-            let s3BucketName = "marks-test-" + communityName.toLowerCase();
+        let config = JSON.parse(fs.readFileSync('communitygraph.json', 'utf8'));
+        let communityName = config["communityName"];        
+        let s3BucketName = "marks-test-" + communityName.toLowerCase();
 
-            _createS3Bucket(s3BucketName)
-                .then(data => {
-                    console.log("Created bucket: " + data.Location.replace("/", ""));
-                }).catch(err => {
-                    console.log(err);
-                });
-        }
+        _createS3Bucket(s3BucketName)
+            .then(data => {
+                console.log("Created bucket: " + data.Location.replace("/", ""));
+            }).catch(err => {
+                console.log(err);
+            });
     } else if(command == "create-kms-key") {
         let args = parseArgs(argv); 
-        if (!args["communityName"]) {
-            console.log("Usage: community-graph create-kms-key --communityName [nameOfYourCommunity]")
-        } else {
-            _createKMSKey()
-                .then(data => {
-                    console.log("Created KMS key: " + data.KeyMetadata.Arn);
-                    return _createKMSKeyAlias(args["communityName"], data.KeyMetadata.Arn );
-                }).then(data => {
-                    console.log("Assigned alias to KMS key");
-                }).catch(err => {
-                    console.log(err, err.stack); 
-                }); 
-        }
+        let config = JSON.parse(fs.readFileSync('communitygraph.json', 'utf8'));
+        let communityName = config["communityName"];
+
+        _createKMSKey()
+            .then(data => {
+                console.log("Created KMS key: " + data.KeyMetadata.Arn);
+                return _createKMSKeyAlias(communityName, data.KeyMetadata.Arn );
+            }).then(data => {
+                console.log("Assigned alias to KMS key");
+            }).catch(err => {
+                console.log(err, err.stack); 
+            }); 
     }
 }
