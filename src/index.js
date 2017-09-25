@@ -104,9 +104,6 @@ function getParameters(callback) {
     };
 
     prompt.get(schema, function (err, result) {
-        //
-        // Log the results.
-        //
         console.log('Command-line input received:');
         console.log('  community name: ' + result.communityName);
         console.log('  serverUrl: ' + result.serverUrl);
@@ -119,55 +116,59 @@ function getParameters(callback) {
 }
 
 function createKMSKey(callback) {
-    kms.createKey({}, function (err, data) {
-        if (err) {
-            console.log(err, err.stack); // an error occurred
-            callback(null);
-        }
-        else {
+    _createKMSKey()
+        .then(data => {
             rawParams.kmsKeyArn = data.KeyMetadata.Arn
             callback(null);
-        }
-    });
+        }).catch(err => {
+            console.log(err, err.stack); // an error occurred
+            callback(null);
+        });    
 };
 
 function createKMSKeyAlias(callback) {
     let kmsKeyArn = rawParams.kmsKeyArn;
     let communityName = rawParams.communityName;
 
+    _createKMSKeyAlias(communityName, kmsKeyArn).promise()
+        .then(data => {
+            callback(null);
+        }).catch(err => {
+            console.log(err, err.stack);
+            callback(null);
+        });
+}
+
+function _createKMSKeyAlias(communityName, kmsKeyArn) { 
     let createAliasParams = {
         AliasName: "alias/CommunityGraphCLI-" + communityName,
         TargetKeyId: kmsKeyArn
-    };
-    kms.createAlias(createAliasParams, function (err, data) {
-        if (err) {
-            console.log(err, err.stack); // an error occurred
-            callback(null);
-        }
-        else {
-            callback(null);
-        }
-    });
+    };  
+
+    return kms.createAlias(createAliasParams).promise();
+}
+
+function _createKMSKey() {
+    return kms.createKey({}).promise();
 }
 
 function createS3Bucket(callback) {
-    let s3BucketName = "marks-test-" + rawParams.communityName.toLowerCase();
-    var params = {
-        Bucket: s3BucketName,
-        ACL: "public-read",
-        GrantRead: "*"
-    };
-
-    s3.createBucket(params, function (err, data) {
-        if (err) {
-            console.log(err, err.stack);
-            callback(null);
-        } else {
-            console.log(data);
+    let s3BucketName = "marks-test-" + rawParams.communityName.toLowerCase();    
+    _createS3Bucket(s3BucketName)
+        .then(data => {
             rawParams.s3Bucket = data.Location.replace("/", "");
             callback(null);
-        }
-    });
+        })
+        .catch(err => {
+            console.log(err, err.stack);
+            callback(null);
+        });        
+}
+
+function _createS3Bucket(s3BucketName) {
+    console.log("Creating bucket: " + s3BucketName);    
+    var params = { Bucket: s3BucketName, ACL: "public-read" };    
+    return s3.createBucket(params).promise()    
 }
 
 function encryptGitHubToken(callback) {
@@ -319,7 +320,7 @@ function deployLambdas(callback) {
 }
 
 
-const validCommands = [null, 'create', "dump-config", "update", "encrypt", "create-neo4j-server"]
+const validCommands = [null, 'create', "dump-config", "update", "encrypt", "create-neo4j-server", "create-s3-bucket", "create-kms-key"]
 const { command, argv } = commandLineCommands(validCommands)
 
 // MAIN
@@ -405,8 +406,8 @@ if (command == null) {
                 .then(data => console.log(data.CiphertextBlob.toString('base64')))
                 .catch(err => console.log(err, err.stack));
         }
-    } else if(command == "create-neo4j-server") {
-        console.log("Creating a Neo4j server"); 
+    } else if (command == "create-neo4j-server") {
+        console.log("Creating a Neo4j server");
 
         // let params = { KeyName: "community-graph-nahi", DryRun: true }
         // ec2.createKeyPair(params).promise()
@@ -426,9 +427,9 @@ if (command == null) {
                 serverParams["groupId"] = data.GroupId;
                 var ports = [7474, 7473, 7687];
                 return Promise.all(ports.map(function (port) {
-                    let params = { 
-                        GroupId: data.GroupId, 
-                        IpProtocol: "tcp", 
+                    let params = {
+                        GroupId: data.GroupId,
+                        IpProtocol: "tcp",
                         FromPort: port,
                         ToPort: port,
                         CidrIp: "0.0.0.0/0",
@@ -444,7 +445,8 @@ if (command == null) {
                     MinCount: 1,
                     MaxCount: 1,
                     InstanceType: "m3.medium",
-                    SecurityGroupIds: [serverParams.groupId]
+                    SecurityGroupIds: [serverParams.groupId],
+                    DryRun: dryRun
                 };
                 return ec2.runInstances(params).promise();
             })
@@ -463,5 +465,35 @@ if (command == null) {
                 console.log(instances[0].PublicDnsName)
             })
             .catch(err => console.log(err, err.stack));
+    } else if (command == "create-s3-bucket") {
+        let args = parseArgs(argv);
+        if (!args["communityName"]) {
+            console.log("Usage: community-graph create-s3-bucket --communityName [nameOfYourCommunity]")
+        } else {
+            let communityName = args["communityName"];
+            let s3BucketName = "marks-test-" + communityName.toLowerCase();
+
+            _createS3Bucket(s3BucketName)
+                .then(data => {
+                    console.log("Created bucket: " + data.Location.replace("/", ""));
+                }).catch(err => {
+                    console.log(err);
+                });
+        }
+    } else if(command == "create-kms-key") {
+        let args = parseArgs(argv); 
+        if (!args["communityName"]) {
+            console.log("Usage: community-graph create-kms-key --communityName [nameOfYourCommunity]")
+        } else {
+            _createKMSKey()
+                .then(data => {
+                    console.log("Created KMS key: " + data.KeyMetadata.Arn);
+                    return _createKMSKeyAlias(args["communityName"], data.KeyMetadata.Arn );
+                }).then(data => {
+                    console.log("Assigned alias to KMS key");
+                }).catch(err => {
+                    console.log(err, err.stack); 
+                }); 
+        }
     }
 }
