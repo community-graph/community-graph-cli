@@ -16,7 +16,19 @@ Python  3.6.0
 
 == How do I use it?
 
-At the moment you'll need to hardcode the following values into a `communitygraph.json` file:
+Make sure you have your AWS credentials in `~/.aws/credentials`.
+
+At the moment you'll need to manually specify your Neo4j server URL.
+You'll also need to have your API keys for Meetup, GitHub, Twitter, and StackOverflow ready.
+
+Once you've done that you're ready to go.
+
+```
+npm install -g .
+community-graph create
+```
+
+On completion the `create` command populates `communitygraph.json` with the values you passed in.
 
 ```
 {
@@ -24,7 +36,7 @@ At the moment you'll need to hardcode the following values into a `communitygrap
   "tag": "Tag for searching on GitHub",
   "s3Bucket": "Name of S3 bucket",
   "logo": "Path to an image of your community",
-  "serverUrl": "IP Address/Hostname of Neo4j Instance",
+  "serverUrl": "IP Address/Hostname of Neo4j Instance (e.g. 127.0.0.1:7687)",
   "twitterSearch": "Twitter search term",
   "credentials": {
     "keyArn": "KMS Key ARN",
@@ -43,16 +55,14 @@ At the moment you'll need to hardcode the following values into a `communitygrap
 }
 ```
 
-You'll also need to make sure you have your AWS credentials in `~/.aws/credentials`.
-
-You can run:
+If you want any changes you make in this file to be reflected you can run the following command:
 
 ```
-npm install -g .
-community-graph
+community-graph update
 ```
 
-We'll be automating more of this so it's a more friendly user experience so check back soon and hopefully it'll be simpler.
+We'll be automating more of this so it's a more friendly user experience. 
+Check back soon and hopefully it'll be simpler.
 
 == Things to do
 
@@ -60,12 +70,12 @@ We'll be automating more of this so it's a more friendly user experience so chec
 * [*] Add lambdas to import data from Meetup
 * [*] Add lambdas to import data from Twitter
 * [*] Add lambdas to import data from GitHub
-* [ ] Interactive `community-graph` so that users can set parameters
-* [ ] Generate `communitygraph.json` file based on parameters passed into the `community-graph` command
-* [ ] Create S3 bucket to put summary page
-* [ ] Permissions for S3 bucket <-> lambda user
-* [ ] Generate KMS key
-* [ ] Encrypt passwords using KMS key
+* [*] Interactive `community-graph` so that users can set parameters
+* [*] Generate `communitygraph.json` file based on parameters passed into the `community-graph` command
+* [*] Create S3 bucket to put summary page
+* [*] Permissions for S3 bucket <-> lambda user
+* [*] Generate KMS key
+* [*] Encrypt passwords using KMS key
 * [ ] Spin up Neo4j server using AWS AMI
 * [ ] Delete `__pycache__` directory at the end of a failing run
 * [ ] Install APOC on the Neo4j server
