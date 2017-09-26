@@ -1,4 +1,6 @@
-function checkPythonVersion(data)  {
+const fs = require("fs");
+
+function checkPythonVersion(data) {
     return new Promise((resolve, reject) => {
         exec('python --version', function (err, stdout, stderr) {
             let systemPython = (stdout.toString() || stderr.toString()).replace("\n", "");
@@ -11,6 +13,19 @@ function checkPythonVersion(data)  {
     })
 }
 
+function checkCommunityGraphExists(data) {
+    return new Promise((resolve, reject) => {
+        fs.stat("communitygraph.json", function (err, stat) {
+            if (err) { 
+                resolve(data);
+            } else {
+                reject("communitygraph.json already exists. If you want to run this command move that file and try again.")
+            }
+        });
+    });
+}
+
 module.exports = {
-    checkPythonVersion: checkPythonVersion
+    checkPythonVersion: checkPythonVersion,
+    checkCommunityGraphExists: checkCommunityGraphExists
 }

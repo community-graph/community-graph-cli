@@ -252,6 +252,25 @@ function deployLambdas(callback) {
 const validCommands = [null, 'create', "dump-config", "update", "encrypt", "create-neo4j-server", "create-s3-bucket", "create-kms-key"]
 const { command, argv } = commandLineCommands(validCommands)
 
+function encryptKey(data, keyName, mapToUpdate) {
+    let kmsKey = data.kmsKeyArn;    
+    let valueToEncrypt = data[keyName];
+
+    return new Promise((resolve, reject) => {
+        if (!valueToEncrypt) {
+            console.log(keyName + " not provided - skipping");
+            resolve(data);
+        } else {
+            let params = { KeyId: kmsKey, Plaintext: valueToEncrypt };
+            
+            kms.encrypt(params).promise().then(data => {
+                mapToUpdate[keyName] = data.CiphertextBlob.toString('base64');
+                resolve(data);
+            }).catch(reject);
+        }
+    });  
+}
+
 // MAIN
 if (command == null) {
     console.log("Usage: community-graph [create|update|dump-config|encrypt]");
@@ -263,18 +282,16 @@ if (command == null) {
         });
 
         welcome.then(data => {
+            return prereqs.checkCommunityGraphExists(data);
+        }).then(data => {
             return prereqs.checkPythonVersion(data);
         }).then(data => {
             console.log("Provide us some parameters so we can get this show on the road:");
-            prompt.start();
-
-            return new Promise((resolve, reject) => {                                
-                prompt.get(cli.schema, function (err, result) {
-                    console.log('Command-line input received:');
-                    console.log(result);
-                    resolve(result)
-                });
-            });
+            return cli.getParameters(data);
+        }).then(data => {
+            console.log('Parameters provided:');
+            console.log(data);
+            return Promise.resolve(data);
         }).then(data => {
             return new Promise((resolve, reject) => {
                 if (!data.kmsKeyArn) {
@@ -293,43 +310,28 @@ if (command == null) {
                     resolve(data);
                 }
             });
-            // if (!data.kmsKeyArn) {
-            //     return _createKMSKey().then(data => {
-            //         console.log("Created KMS key: " + data.KeyMetadata.Arn);
-            //         data.kmsKeyArn = data.KeyMetadata.Arn;
-
-            //         return new Promise((resolve, reject) => {
-            //             _createKMSKeyAlias(communityName, data.KeyMetadata.Arn).then(result => {
-            //                 resolve(data);
-            //             }).catch(reject);
-            //         });
-            //     }).then(data => {
-            //         console.log("Assigned alias to KMS key");
-            //         return Promise.resolve(data);
-            //     });
-            // } else {
-            //     return Promise.resolve(data);
-            // }
         }).then(data => {
-            let kmsKey = data.kmsKeyArn;
-            console.log("Encrypting with KMS Key: " + kmsKey);
-    
-            let valueToEncrypt = data.meetupApiKey;
+            let keyName = "meetupApiKey"                        
+            let mapToUpdate = communityGraphParams.credentials;
+            return encryptKey(data, keyName, mapToUpdate);
 
-            return new Promise((resolve, reject) => {
-                if(!valueToEncrypt) {
-                    reject("Cannot encrypt missing meetup key");
-                } else {
-                    let params = { KeyId: kmsKey, Plaintext: valueToEncrypt };
+            // return new Promise((resolve, reject) => {
+            //     if (!valueToEncrypt) {
+            //         console.log(keyName + " not provided - skipping");
+            //         resolve(data);
+            //     } else {
+            //         let params = { KeyId: kmsKey, Plaintext: valueToEncrypt };
                     
-                    kms.encrypt(params).promise().then(data => {
-                        communityGraphParams.credentials.meetupApiKey = data.CiphertextBlob.toString('base64');
-                        resolve(data);
-                    }).catch(reject);
-                }
-            });            
+            //         kms.encrypt(params).promise().then(data => {
+            //             mapToUpdate[keyName] = data.CiphertextBlob.toString('base64');
+            //             resolve(data);
+            //         }).catch(reject);
+            //     }
+            // });            
+        }).then(data => {
+            console.log(communityGraphParams);
         }).catch(err => {
-            console.error("Error while deploying lambdas:", err);
+            console.error("Error while creating community graph:", err);
             process.exit(1);
         })
 
@@ -405,7 +407,7 @@ if (command == null) {
         }).then(data => {
             console.log("Lambdas deployed");
         }).catch(err => {
-            console.error("Error while deploying lambdas:", err);
+            console.error("Error updating community graph:", err);
             process.exit(1);
         });
     } else if (command == "dump-config") {
