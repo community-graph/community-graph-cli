@@ -256,6 +256,8 @@ function encryptKey(data, keyName, mapToUpdate) {
     let kmsKey = data.kmsKeyArn;    
     let valueToEncrypt = data[keyName];
 
+    console.log("Encrypting " + keyName + ":" + valueToEncrypt);
+
     return new Promise((resolve, reject) => {
         if (!valueToEncrypt) {
             console.log(keyName + " not provided - skipping");
@@ -263,12 +265,40 @@ function encryptKey(data, keyName, mapToUpdate) {
         } else {
             let params = { KeyId: kmsKey, Plaintext: valueToEncrypt };
             
-            kms.encrypt(params).promise().then(data => {
-                mapToUpdate[keyName] = data.CiphertextBlob.toString('base64');
+            kms.encrypt(params).promise().then(result => {
+                mapToUpdate[keyName] = result.CiphertextBlob.toString('base64');
                 resolve(data);
             }).catch(reject);
         }
     });  
+}
+
+function writeJson(data) {
+    communityGraphParams.communityName = data.communityName;
+    communityGraphParams.tag = data.tag;
+    communityGraphParams.serverUrl = data.serverUrl;
+    communityGraphParams.logo = data.logo;
+    communityGraphParams.s3Bucket = data.s3Bucket;
+    communityGraphParams.twitterSearch = data.twitterSearch;
+
+    communityGraphParams.credentials.keyArn = data.kmsKeyArn;
+    
+    communityGraphParams.credentials.readonly.user = data.readOnlyServerUsername || "neo4j";
+    communityGraphParams.credentials.readonly.password = communityGraphParams.credentials.readonly.readOnlyServerPassword;
+    communityGraphParams.credentials.write.user = data.serverUsername || "neo4j";
+    communityGraphParams.credentials.write.password = communityGraphParams.credentials.write.serverPassword;
+
+    delete communityGraphParams.credentials.readonly.readOnlyServerPassword;
+    delete communityGraphParams.credentials.write.serverPassword;
+
+    return new Promise((resolve, reject) => {
+        try {
+            fs.writeFileSync("communitygraph.json", JSON.stringify(communityGraphParams));
+            resolve(data);
+        } catch (e) {
+            reject(e);
+        }
+    });    
 }
 
 // MAIN
@@ -311,25 +341,44 @@ if (command == null) {
                 }
             });
         }).then(data => {
-            let keyName = "meetupApiKey"                        
-            let mapToUpdate = communityGraphParams.credentials;
-            return encryptKey(data, keyName, mapToUpdate);
-
-            // return new Promise((resolve, reject) => {
-            //     if (!valueToEncrypt) {
-            //         console.log(keyName + " not provided - skipping");
-            //         resolve(data);
-            //     } else {
-            //         let params = { KeyId: kmsKey, Plaintext: valueToEncrypt };
-                    
-            //         kms.encrypt(params).promise().then(data => {
-            //             mapToUpdate[keyName] = data.CiphertextBlob.toString('base64');
-            //             resolve(data);
-            //         }).catch(reject);
-            //     }
-            // });            
+            let communityName = data.communityName;
+            let s3BucketName = "marks-test-" + communityName.toLowerCase();            
+            return new Promise((resolve, reject) => {
+                if (!data.s3Bucket) {
+                    console.log("Creating S3 bucket: " + s3BucketName)
+                    _createS3Bucket(s3BucketName).then(result => {
+                        data.s3Bucket = result.Location.replace("/", "");
+                        resolve(data);
+                    }).catch(reject);
+                } else {
+                    console.log("Using S3 bucket: " + data.s3Bucket)
+                    resolve(data);
+                }                
+            }); 
         }).then(data => {
-            console.log(communityGraphParams);
+            return encryptKey(data, "meetupApiKey", communityGraphParams.credentials);          
+        }).then(data => {
+            return encryptKey(data, "stackOverflowApiKey", communityGraphParams.credentials);          
+        }).then(data => {
+            return encryptKey(data, "githubToken", communityGraphParams.credentials);          
+        }).then(data => {
+            return encryptKey(data, "twitterBearer", communityGraphParams.credentials);          
+        }).then(data => {            
+            if (!data.serverUrl) {
+                return Promise.resolve(data);
+            } else {
+                return encryptKey(data, "readOnlyServerPassword", communityGraphParams.credentials.readonly);
+            }            
+        }).then(data => {
+            if (!data.serverUrl) {
+                return Promise.resolve(data);
+            } else {
+                return encryptKey(data, "serverPassword", communityGraphParams.credentials.write);
+            }               
+        }).then(data => {
+            console.log("updated params" + communityGraphParams);
+            console.log("to write: " + data)
+            return writeJson(data);
         }).catch(err => {
             console.error("Error while creating community graph:", err);
             process.exit(1);
