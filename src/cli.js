@@ -1,3 +1,5 @@
+const prompt = require('prompt');
+
 module.exports = {
     schema: {
         properties: {

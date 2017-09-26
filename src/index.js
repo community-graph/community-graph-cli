@@ -257,57 +257,133 @@ if (command == null) {
     console.log("Usage: community-graph [create|update|dump-config|encrypt]");
 } else {
     if (command == "create") {
-        async.waterfall([
-            welcomeToCommunityGraph,
-            getParameters,
-            function (callback) {
-                if (!rawParams.kmsKeyArn) {
-                    async.waterfall([
-                        createKMSKey,
-                        createKMSKeyAlias
-                    ], callback);
-                } else {
-                    callback(null)
-                }
-            },
-            function (callback) {
-                if (!rawParams.s3Bucket) {
-                    async.waterfall([
-                        createS3Bucket,
-                    ], callback);
-                } else {
-                    callback(null)
-                }
-            },
-            encryptMeetupApiKey,
-            encryptTwitterBearer,
-            encryptGitHubToken,
-            encryptStackOverflowApiKey,
-            function (callback) {
-                if(!rawParams.serverUrl) {
-                    console.log("No server URL provided so no password encryption for now");
-                    callback(null);
-                } else {
-                    async.waterfall([
-                        encryptWritePassword,
-                        encryptReadOnlyPassword
-                    ], callback)
-                }
-            },            
-            writeCommunityGraphJson
-        ], function (err, result) {
-            if (err) {
-                console.log("ERROR - exiting");
-                console.log(err);
-                process.exit(1);
-            } else {
-                if (result) {
-                    var name = result.name || "";
-                    console.log("\nThanks " + name + "! Please email " + chalk.underline("devrel@neo4j.com") + " with any questions or feedback.");
-                    process.exit(0);
-                }
-            }
+        let welcome = new Promise((resolve, reject) => {
+            console.log("Welcome to the community graph - it's time to find out what's happening in your community!");
+            resolve();
         });
+
+        welcome.then(data => {
+            return prereqs.checkPythonVersion(data);
+        }).then(data => {
+            console.log("Provide us some parameters so we can get this show on the road:");
+            prompt.start();
+
+            return new Promise((resolve, reject) => {                                
+                prompt.get(cli.schema, function (err, result) {
+                    console.log('Command-line input received:');
+                    console.log(result);
+                    resolve(result)
+                });
+            });
+        }).then(data => {
+            return new Promise((resolve, reject) => {
+                if (!data.kmsKeyArn) {
+                    _createKMSKey().then(result => {
+                        console.log("Created KMS key: " + result.KeyMetadata.Arn);
+                        data.kmsKeyArn = result.KeyMetadata.Arn;
+
+                        let kmsKeyArn = data.kmsKeyArn;
+                        let communityName = data.communityName;
+                        return _createKMSKeyAlias(communityName, kmsKeyArn);
+                    }).then(result => {
+                        console.log("Assigned KMS Key alias");
+                        resolve(data);
+                    }).catch(reject);
+                } else {
+                    resolve(data);
+                }
+            });
+            // if (!data.kmsKeyArn) {
+            //     return _createKMSKey().then(data => {
+            //         console.log("Created KMS key: " + data.KeyMetadata.Arn);
+            //         data.kmsKeyArn = data.KeyMetadata.Arn;
+
+            //         return new Promise((resolve, reject) => {
+            //             _createKMSKeyAlias(communityName, data.KeyMetadata.Arn).then(result => {
+            //                 resolve(data);
+            //             }).catch(reject);
+            //         });
+            //     }).then(data => {
+            //         console.log("Assigned alias to KMS key");
+            //         return Promise.resolve(data);
+            //     });
+            // } else {
+            //     return Promise.resolve(data);
+            // }
+        }).then(data => {
+            let kmsKey = data.kmsKeyArn;
+            console.log("Encrypting with KMS Key: " + kmsKey);
+    
+            let valueToEncrypt = data.meetupApiKey;
+
+            return new Promise((resolve, reject) => {
+                if(!valueToEncrypt) {
+                    reject("Cannot encrypt missing meetup key");
+                } else {
+                    let params = { KeyId: kmsKey, Plaintext: valueToEncrypt };
+                    
+                    kms.encrypt(params).promise().then(data => {
+                        communityGraphParams.credentials.meetupApiKey = data.CiphertextBlob.toString('base64');
+                        resolve(data);
+                    }).catch(reject);
+                }
+            });            
+        }).catch(err => {
+            console.error("Error while deploying lambdas:", err);
+            process.exit(1);
+        })
+
+        // async.waterfall([
+        //     welcomeToCommunityGraph,
+        //     getParameters,
+        //     function (callback) {
+        //         if (!rawParams.kmsKeyArn) {
+        //             async.waterfall([
+        //                 createKMSKey,
+        //                 createKMSKeyAlias
+        //             ], callback);
+        //         } else {
+        //             callback(null)
+        //         }
+        //     },
+        //     function (callback) {
+        //         if (!rawParams.s3Bucket) {
+        //             async.waterfall([
+        //                 createS3Bucket,
+        //             ], callback);
+        //         } else {
+        //             callback(null)
+        //         }
+        //     },
+        //     encryptMeetupApiKey,
+        //     encryptTwitterBearer,
+        //     encryptGitHubToken,
+        //     encryptStackOverflowApiKey,
+        //     function (callback) {
+        //         if(!rawParams.serverUrl) {
+        //             console.log("No server URL provided so no password encryption for now");
+        //             callback(null);
+        //         } else {
+        //             async.waterfall([
+        //                 encryptWritePassword,
+        //                 encryptReadOnlyPassword
+        //             ], callback)
+        //         }
+        //     },            
+        //     writeCommunityGraphJson
+        // ], function (err, result) {
+        //     if (err) {
+        //         console.log("ERROR - exiting");
+        //         console.log(err);
+        //         process.exit(1);
+        //     } else {
+        //         if (result) {
+        //             var name = result.name || "";
+        //             console.log("\nThanks " + name + "! Please email " + chalk.underline("devrel@neo4j.com") + " with any questions or feedback.");
+        //             process.exit(0);
+        //         }
+        //     }
+        // });
     } else if (command == "update") {
         let welcome = new Promise((resolve, reject) => {
             console.log("Deploying the community graph's lambdas to AWS");
@@ -330,6 +406,7 @@ if (command == null) {
             console.log("Lambdas deployed");
         }).catch(err => {
             console.error("Error while deploying lambdas:", err);
+            process.exit(1);
         });
     } else if (command == "dump-config") {
         var config = JSON.parse(fs.readFileSync('communitygraph.json', 'utf8'));
