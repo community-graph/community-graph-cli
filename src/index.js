@@ -9,7 +9,8 @@ var async = require('async'),
     opn = require('opn'),
     commandLineCommands = require('command-line-commands'),
     parseArgs = require('minimist'),
-    cli = require("./cli");
+    cli = require("./cli"), 
+    exec = require('child_process').exec;
 
 let rawParams = {};
 let communityGraphParams = {
@@ -307,21 +308,36 @@ if (command == null) {
             }
         });
     } else if (command == "update") {
-        async.waterfall([
-            welcomeToCommunityGraph,
-            deployLambdas
-        ], function (err, result) {
-            if (err) {
-                console.log("ERROR - exiting");
-                console.log(err);
-                process.exit(1);
-            } else {
-                if (result) {
-                    var name = result.name || "";
-                    console.log("\nThanks " + name + "! Please email " + chalk.underline("devrel@neo4j.com") + " with any questions or feedback.");
-                    process.exit(0);
-                }
-            }
+        let welcome = new Promise((resolve, reject) => {
+            console.log("Deploying the community graph's lambdas to AWS");
+            resolve();
+        });
+
+        welcome.then(data => {
+            return new Promise((resolve, reject) => {
+                exec('python --version', function (err, stdout, stderr) {
+                    let systemPython = (stdout.toString() || stderr.toString()).replace("\n", "");
+                    if (systemPython.includes("3.6")) {
+                        resolve("Python 3.6 installed");
+                    } else {
+                        reject("The community graph runs on Python 3.6. Your system python is: " + systemPython);
+                    }
+                });
+            });
+        }).then(data => {
+            const serverless = new Serverless({});
+            const CLI = require('serverless/lib/classes/CLI');
+    
+            CLI.prototype.processInput = function () {
+                return { commands: ['deploy'], options: { help: false } };
+            };
+        
+            serverless.cli = CLI;
+            return serverless.init().then(() => serverless.run());
+        }).then(data => {
+            console.log("Lambdas deployed");
+        }).catch(err => {
+            console.error("Error while deploying lambdas:", err);
         });
     } else if (command == "dump-config") {
         var config = JSON.parse(fs.readFileSync('communitygraph.json', 'utf8'));
