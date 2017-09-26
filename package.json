@@ -33,6 +33,7 @@
     "opn": "^5.0.0",
     "prompt": "^1.0.0",
     "serverless": "^1.14.0",
-    "serverless-python-requirements": "^2.3.3"
+    "serverless-python-requirements": "^2.3.3",
+    "uuid": "^3.1.0"
   }
 }

@@ -51,7 +51,8 @@ def import_events(neo4j_url, neo4j_user, neo4j_pass, meetup_key):
         with driver.session() as session:
             result = session.run("MATCH (g:Group:Meetup) RETURN g.id as id, g.key as key")
             groups = [str(record["id"]) for record in result if record["id"]]
-            for groups_chunk in chunker(groups, 100):
+            for groups_chunk in chunker(groups, 20):
+                print("Importing events for groups: {chunk}".format(chunk=groups_chunk))
                 event_url = "https://api.meetup.com/2/events?group_id={groups}&status=upcoming,past&text_format=plain&order=time&omit=fee,photo_sample,rsvp_rules,rsvp_sample&fields=event_hosts".format(
                     groups=",".join(groups_chunk))
                 run_import("events", event_url, session, import_meetup_events_query, meetup_key, {})
@@ -88,10 +89,14 @@ def run_import(type, url, session, query, meetup_key, params):
             print("Request failed with status code {code}".format(code=response.status_code))
             print(response.text)
             return
+    
+        if not response.text:
+            print("Response is missing for {url} - retrying".format(url = api_url))
+            continue
 
         rate_remain = int(response.headers['X-RateLimit-Remaining'])
         rate_reset = int(response.headers['X-RateLimit-Reset'])
-
+       
         json = response.json()
         meta = json['meta']
         results = json.get("results", [])
@@ -103,8 +108,7 @@ def run_import(type, url, session, query, meetup_key, params):
             print(result.consume().counters)
             page = page + 1
 
-        print(type, "results", len(results), "has_more", has_more, "quota", rate_remain, "reset (s)", rate_reset,
-              "page", page)
+        print(type, "results", len(results), "has_more", has_more, "quota", rate_remain, "reset (s)", rate_reset, "page", page)
         time.sleep(1)
         if rate_remain <= 0:
             time.sleep(rate_reset)

@@ -11,7 +11,8 @@ var async = require('async'),
     parseArgs = require('minimist'),
     cli = require("./cli"),
     prereqs = require("./prereqs"),
-    exec = require('child_process').exec;
+    exec = require('child_process').exec,
+    uuidv4 = require('uuid/v4');
 
 let rawParams = {};
 let communityGraphParams = {
@@ -88,8 +89,8 @@ function writeCommunityGraphJson(data) {
     delete communityGraphParams.credentials.write.serverPassword;
 
     return new Promise((resolve, reject) => {
-        try {
-            fs.writeFileSync("communitygraph.json", JSON.stringify(communityGraphParams));
+        try {            
+            fs.writeFileSync("communitygraph.json", JSON.stringify(communityGraphParams, null, 4));
             resolve(data);
         } catch (e) {
             reject(e);
@@ -107,11 +108,9 @@ if (command == null) {
             resolve();
         });
 
-        welcome.then(data => {
-            return prereqs.checkCommunityGraphExists(data);
-        }).then(data => {
-            return prereqs.checkPythonVersion(data);
-        }).then(data => {
+        welcome
+        .then(prereqs.checkCommunityGraphExists)
+        .then(prereqs.checkPythonVersion).then(data => {
             console.log("Provide us some parameters so we can get this show on the road:");
             return cli.getParameters(data);
         }).then(data => {
@@ -138,7 +137,7 @@ if (command == null) {
             });
         }).then(data => {
             let communityName = data.communityName;
-            let s3BucketName = "marks-test-" + communityName.toLowerCase();            
+            let s3BucketName = "community-graph-" + communityName.toLowerCase();            
             return new Promise((resolve, reject) => {
                 if (!data.s3Bucket) {
                     console.log("Creating S3 bucket: " + s3BucketName)
@@ -172,8 +171,6 @@ if (command == null) {
                 return encryptKey(data, "serverPassword", communityGraphParams.credentials.write);
             }               
         }).then(data => {
-            console.log("updated params" + communityGraphParams);
-            console.log("to write: " + data)
             return writeCommunityGraphJson(data);
         }).catch(err => {
             console.error("Error while creating community graph:", err);
@@ -185,9 +182,9 @@ if (command == null) {
             resolve();
         });
 
-        welcome.then(data => {
-            return prereqs.checkPythonVersion(data);
-        }).then(data => {
+        welcome
+        .then(prereqs.checkPythonVersion)
+        .then(prereqs.removePyCache).then(data => {
             const serverless = new Serverless({});
             const CLI = require('serverless/lib/classes/CLI');
     
@@ -225,66 +222,61 @@ if (command == null) {
     } else if (command == "create-neo4j-server") {
         console.log("Creating a Neo4j server");
 
-        // let params = { KeyName: "community-graph-nahi", DryRun: true }
-        // ec2.createKeyPair(params).promise()
-        //     .then(data => console.log(data))
-        //     .catch(err => console.log(err, err.stack));
-
         let args = parseArgs(argv);
         let dryRun = "dry-run" in args;
-        console.log("Dry run?:" + dryRun)
-
+        console.log("Dry run?:" + dryRun);
+            
         let serverParams = {};
+        serverParams.keyName = "community-graph-golang-" + uuidv4();
+        serverParams.groupName = "community-graph-security-golang-" + uuidv4();
 
-        let params = { Description: "Community Graph Security Group", GroupName: "community-graph-security-group2", DryRun: dryRun }
-        ec2.createSecurityGroup(params).promise()
-            .then(data => {
-                console.log("Created Group Id:" + data.GroupId);
-                serverParams["groupId"] = data.GroupId;
-                var ports = [7474, 7473, 7687];
-                return Promise.all(ports.map(function (port) {
-                    let params = {
-                        GroupId: data.GroupId,
-                        IpProtocol: "tcp",
-                        FromPort: port,
-                        ToPort: port,
-                        CidrIp: "0.0.0.0/0",
-                        DryRun: dryRun
-                    };
-                    return ec2.authorizeSecurityGroupIngress(params).promise();
-                }));
-            })
-            .then(data => {
-                console.log(data);
+        ec2.createKeyPair({ KeyName: serverParams.keyName, DryRun: dryRun }).promise().then(data => { 
+            console.log(data);
+            return ec2.createSecurityGroup({ Description: "Community Graph Security Group", GroupName: serverParams.groupName, DryRun: dryRun }).promise()
+        }).then(data => {
+            console.log("Created Group Id:" + data.GroupId);
+            serverParams["groupId"] = data.GroupId;
+            var ports = [22, 7474, 7473, 7687];
+            return Promise.all(ports.map(function (port) {
                 let params = {
-                    ImageId: "ami-f03c4fe6",
-                    MinCount: 1,
-                    MaxCount: 1,
-                    InstanceType: "m3.medium",
-                    SecurityGroupIds: [serverParams.groupId],
+                    GroupId: data.GroupId,
+                    IpProtocol: "tcp",
+                    FromPort: port,
+                    ToPort: port,
+                    CidrIp: "0.0.0.0/0",
                     DryRun: dryRun
                 };
-                return ec2.runInstances(params).promise();
-            })
-            .then(data => {
-                let ourInstance = data.Instances[0];
-                console.log("Instance Id:" + ourInstance.InstanceId);
+                return ec2.authorizeSecurityGroupIngress(params).promise();
+            }));
+        }).then(data => {
+            console.log(data);
+            let params = {
+                ImageId: "ami-f03c4fe6",
+                MinCount: 1,
+                MaxCount: 1,
+                InstanceType: "m3.medium",
+                KeyName: serverParams.keyName,
+                SecurityGroupIds: [serverParams.groupId],
+                DryRun: dryRun
+            };
+            return ec2.runInstances(params).promise();
+        }).then(data => {
+            let ourInstance = data.Instances[0];
+            console.log("Instance Id: " + ourInstance.InstanceId);
 
-                let params = {
-                    InstanceIds: [ourInstance.InstanceId]
-                };
-                return ec2.waitFor("instanceRunning", params).promise();
-            })
-            .then(data => {
-                let reservations = data.Reservations;
-                let instances = reservations[0].Instances;
-                console.log(instances[0].PublicDnsName)
-            })
-            .catch(err => console.log(err, err.stack));
+            let params = {
+                InstanceIds: [ourInstance.InstanceId]
+            };
+            return ec2.waitFor("instanceRunning", params).promise();
+        }).then(data => {
+            let reservations = data.Reservations;
+            let instances = reservations[0].Instances;
+            console.log("Public DNS Name: " + instances[0].PublicDnsName)
+        }).catch(err => console.log(err, err.stack));
     } else if (command == "create-s3-bucket") {
         let config = JSON.parse(fs.readFileSync('communitygraph.json', 'utf8'));
         let communityName = config["communityName"];        
-        let s3BucketName = "marks-test-" + communityName.toLowerCase();
+        let s3BucketName = "community-graph-" + communityName.toLowerCase();
 
         _createS3Bucket(s3BucketName)
             .then(data => {

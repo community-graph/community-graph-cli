@@ -19,7 +19,7 @@ WHERE toInteger(tweets[0].created) is not null AND tweets[0].created > oneWeekAg
 RETURN url, title,
        REDUCE(acc = 0, tweet IN tweets | acc + tweet.favorites + size((tweet)<-[:RETWEETED]-())) AS score,
        tweets[0].created * 1000 AS dateCreated,
-       apoc.coll.toSet([ tweet IN tweets | head([ (tweet)<-[:POSTED]-(user) | user.screen_name]) ]) AS users
+       [ tweet IN tweets | head([ (tweet)<-[:POSTED]-(user) | user.screen_name]) ] AS users
 ORDER BY score DESC
 """
 
