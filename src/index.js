@@ -9,7 +9,8 @@ var async = require('async'),
     opn = require('opn'),
     commandLineCommands = require('command-line-commands'),
     parseArgs = require('minimist'),
-    cli = require("./cli"), 
+    cli = require("./cli"),
+    prereqs = require("./prereqs"),
     exec = require('child_process').exec;
 
 let rawParams = {};
@@ -314,16 +315,7 @@ if (command == null) {
         });
 
         welcome.then(data => {
-            return new Promise((resolve, reject) => {
-                exec('python --version', function (err, stdout, stderr) {
-                    let systemPython = (stdout.toString() || stderr.toString()).replace("\n", "");
-                    if (systemPython.includes("3.6")) {
-                        resolve("Python 3.6 installed");
-                    } else {
-                        reject("The community graph runs on Python 3.6. Your system python is: " + systemPython);
-                    }
-                });
-            });
+            return prereqs.checkPythonVersion(data);
         }).then(data => {
             const serverless = new Serverless({});
             const CLI = require('serverless/lib/classes/CLI');
