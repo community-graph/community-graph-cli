@@ -76,8 +76,8 @@ Check back soon and hopefully it'll be simpler.
 * [*] Permissions for S3 bucket <-> lambda user
 * [*] Generate KMS key
 * [*] Encrypt passwords using KMS key
+* [*] Delete `__pycache__` directory at the end of a failing run
 * [ ] Spin up Neo4j server using AWS AMI
-* [ ] Delete `__pycache__` directory at the end of a failing run
 * [ ] Install APOC on the Neo4j server
 * [ ] Run all the lambdas once on creation
 * [ ] Run the twitter lambda with `catch-up: false`

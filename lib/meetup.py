@@ -6,7 +6,6 @@ from neo4j.v1 import GraphDatabase, basic_auth
 import_meetup_events_query = """
 UNWIND {json} as e
 MATCH (g:Group {id:e.group.id})
-WITH e,g WHERE (g:Graph OR (e.name + e.description) =~ "(?is).*(graph|neo4j).*")
 MERGE (event:Event:Meetup {id:e.id}) 
 ON CREATE SET event.title=e.name,event.text=e.description,event.created=e.created,
 event.link=e.event_url,event.time=e.time,
@@ -101,6 +100,7 @@ def run_import(type, url, session, query, meetup_key, params):
         meta = json['meta']
         results = json.get("results", [])
         has_more = len(meta.get("next", "")) > 0
+
         if len(results) > 0:
             p = {"json": results}
             p.update(params)
