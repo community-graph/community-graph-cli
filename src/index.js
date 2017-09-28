@@ -249,9 +249,7 @@ if (command == null) {
             resolve();
         });
 
-        welcome
-        .then(prereqs.checkPythonVersion)
-        .then(prereqs.removePyCache).then(data => {
+        welcome.then(data => {
             let config = JSON.parse(fs.readFileSync('communitygraph.json', 'utf8'));
 
             console.log("Neo4j browser URI: http://" + config["serverUrl"] + ":7474");
