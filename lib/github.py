@@ -87,104 +87,111 @@ query Repositories($searchTerm: String!, $cursor: String) {
 }
 """
 
+class GitHubImporter:
+    def __init__(self, neo4j_url, neo4j_user, neo4j_pass, github_token):
+        self.neo4j_url = neo4j_url
+        self.neo4j_user = neo4j_user
+        self.neo4j_pass = neo4j_pass
+        self.github_token = github_token
+
+    def process_tag(self, tags, start_date, end_date):
+        with GraphDatabase.driver(self.neo4j_url, auth=basic_auth(self.neo4j_user, self.neo4j_pass)) as driver:
+            with driver.session() as session:
+                tag = " OR ".join(tags)
+                print("Processing projects from {0} to {1}. Tag: [{2}]".format(start_date, end_date, tag))
+                search = "{0} size:>0 pushed:{1}..{2}".format(tag, start_date, end_date)
+                cursor = None
+                print("Search term: {0}".format(search))
+                has_more = True
+                while has_more:
+                    apiUrl = "https://api.github.com/graphql"
+
+                    data = {
+                        "query": graphql_query,
+                        "variables": {"searchTerm": search, "cursor": cursor}
+                    }
+
+                    bearer_token = "bearer {token}".format(token=self.github_token)
+                    response = requests.post(apiUrl,
+                                            data=json.dumps(data),
+                                            headers={"accept": "application/json",
+                                                    "Authorization": bearer_token})
+
+                    if response.status_code != 200:
+                        print("Request failed with status code {code}".format(code=response.status_code))
+                        print(response.text)
+                        return
+
+                    r = response.json()
+                    if not r["data"]:
+                        print("Response doesn't contain a 'data' section so we can't continue")
+                        print("Params: {0}".format(tags))
+                        print(response.text)
+                        return
+
+                    the_json = []
+                    search_section = r["data"]["search"]
+                    for node in search_section["nodes"]:
+                        languages = [n["name"] for n in node["languages"]["nodes"]]
+                        default_branch_ref = node.get("defaultBranchRef") if node.get("defaultBranchRef") else {}
+                        full_name = "{login}/{name}".format(name=node["name"], login=node["owner"]["login"])
+
+                        if not node["isPrivate"]:
+                            params = {
+                                "id": node["databaseId"],
+                                "isPrivate": node["isPrivate"],
+                                "name": node["name"],
+                                "full_name": full_name,
+                                "created_at": node["createdAt"],
+                                "pushed_at": node["pushedAt"],
+                                "updated_at": node["updatedAt"],
+                                "size": node["diskUsage"],
+                                "homepage": node["homepageUrl"],
+                                "stargazers_count": node["forks"]["totalCount"],
+                                "forks_count": node["stargazers"]["totalCount"],
+                                "watchers": node["watchers"]["totalCount"],
+                                "owner": {
+                                    "id": node["owner"].get("databaseId", ""),
+                                    "login": node["owner"]["login"],
+                                    "avatarUrl": node["owner"]["avatarUrl"],
+                                    "name": node["owner"].get("name", ""),
+                                    "type": node["owner"]["__typename"],
+                                    "location": node["owner"].get("location", "")
+                                },
+                                "default_branch": default_branch_ref.get("name", ""),
+                                "open_issues": node["issues"]["totalCount"],
+                                "description": node["description"],
+                                "html_url": node["url"],
+                                "language": languages[0] if len(languages) > 0 else ""
+                            }
+
+                            the_json.append(params)
+                        else:
+                            print("Skipping private repository", full_name)
+
+                    has_more = search_section["pageInfo"]["hasNextPage"]
+                    cursor = search_section["pageInfo"]["endCursor"]
+
+                    result = session.run(import_query, {"json": {"items": the_json}})
+                    print(result.consume().counters)
+
+                    reset_at = r["data"]["rateLimit"]["resetAt"]
+                    time_until_reset = (parse(reset_at) - datetime.datetime.now(timezone.utc)).total_seconds()
+
+                    if r["data"]["rateLimit"]["remaining"] <= 0:
+                        time.sleep(time_until_reset)
+
+                    print("Reset at:", time_until_reset,
+                        "has_more", has_more,
+                        "cursor", cursor,
+                        "repositoryCount", search_section["repositoryCount"])
 
 def import_github(neo4j_url, neo4j_user, neo4j_pass, tag, github_token):
-    with GraphDatabase.driver(neo4j_url, auth=basic_auth(neo4j_user, neo4j_pass)) as driver:
-        with driver.session() as session:
-            for tags in chunker(tag, 5):
-                process_tag(github_token, session, tags)
-
-
-def process_tag(github_token, session, tags):
-    tag = " OR ".join(tags)
-    from_date = (datetime.datetime.now() - datetime.timedelta(days=90)).strftime("%Y-%m-%d")
-    print("Processing projects from {0}. Tag: [{1}]".format(from_date, tag))
-    search = "{0} pushed:>{1}".format(tag, from_date)
-    print("Search term: {0}".format(search))
-    cursor = None
-    has_more = True
-    while has_more:
-        apiUrl = "https://api.github.com/graphql"
-
-        data = {
-            "query": graphql_query,
-            "variables": {"searchTerm": search, "cursor": cursor}
-        }
-
-        bearer_token = "bearer {token}".format(token=github_token)
-        response = requests.post(apiUrl,
-                                 data=json.dumps(data),
-                                 headers={"accept": "application/json",
-                                          "Authorization": bearer_token})
-
-        if response.status_code != 200:
-            print("Request failed with status code {code}".format(code=response.status_code))
-            print(response.text)
-            return
-
-        r = response.json()
-        if not r["data"]:
-            print("Response doesn't contain a 'data' section so we can't continue")
-            print("Params: {0}".format(tags))
-            print(response.text)
-            return
-
-        the_json = []
-        search_section = r["data"]["search"]
-        for node in search_section["nodes"]:
-            languages = [n["name"] for n in node["languages"]["nodes"]]
-            default_branch_ref = node.get("defaultBranchRef") if node.get("defaultBranchRef") else {}
-            full_name = "{login}/{name}".format(name=node["name"], login=node["owner"]["login"])
-
-            if not node["isPrivate"]:
-                params = {
-                    "id": node["databaseId"],
-                    "isPrivate": node["isPrivate"],
-                    "name": node["name"],
-                    "full_name": full_name,
-                    "created_at": node["createdAt"],
-                    "pushed_at": node["pushedAt"],
-                    "updated_at": node["updatedAt"],
-                    "size": node["diskUsage"],
-                    "homepage": node["homepageUrl"],
-                    "stargazers_count": node["forks"]["totalCount"],
-                    "forks_count": node["stargazers"]["totalCount"],
-                    "watchers": node["watchers"]["totalCount"],
-                    "owner": {
-                        "id": node["owner"].get("databaseId", ""),
-                        "login": node["owner"]["login"],
-                        "avatarUrl": node["owner"]["avatarUrl"],
-                        "name": node["owner"].get("name", ""),
-                        "type": node["owner"]["__typename"],
-                        "location": node["owner"].get("location", "")
-                    },
-                    "default_branch": default_branch_ref.get("name", ""),
-                    "open_issues": node["issues"]["totalCount"],
-                    "description": node["description"],
-                    "html_url": node["url"],
-                    "language": languages[0] if len(languages) > 0 else ""
-                }
-
-                the_json.append(params)
-            else:
-                print("Skipping private repository", full_name)
-
-        has_more = search_section["pageInfo"]["hasNextPage"]
-        cursor = search_section["pageInfo"]["endCursor"]
-
-        result = session.run(import_query, {"json": {"items": the_json}})
-        print(result.consume().counters)
-
-        reset_at = r["data"]["rateLimit"]["resetAt"]
-        time_until_reset = (parse(reset_at) - datetime.datetime.now(timezone.utc)).total_seconds()
-
-        if r["data"]["rateLimit"]["remaining"] <= 0:
-            time.sleep(time_until_reset)
-
-        print("Reset at:", time_until_reset,
-              "has_more", has_more,
-              "cursor", cursor,
-              "repositoryCount", search_section["repositoryCount"])
+    importer = GitHubImporter(neo4j_url, neo4j_user, neo4j_pass, github_token)
+    for tags in chunker(tag, 5):
+        start_date = (datetime.datetime.now() - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+        end_date = datetime.datetime.now().strftime("%Y-%m-%d")
+        importer.process_tag(tags, start_date, start_date)
 
 
 def chunker(seq, size):

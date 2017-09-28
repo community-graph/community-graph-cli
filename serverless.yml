@@ -7,6 +7,15 @@ custom:
   kmsKeyArn: ${file(${env:CONFIG_FILE, 'communitygraph.json'}):credentials.keyArn}
   communityName: ${file(${env:CONFIG_FILE, 'communitygraph.json'}):communityName}
   s3Bucket: ${file(${env:CONFIG_FILE, 'communitygraph.json'}):s3Bucket}
+  GitHubTopic:
+    Fn::Join:
+      - ":"
+      - - arn
+        - aws
+        - sns
+        - Ref: AWS::Region
+        - Ref: AWS::AccountId
+        - GitHub-${file(${env:CONFIG_FILE, 'communitygraph.json'}):communityName}
 
 provider:
   name: aws
@@ -32,6 +41,11 @@ provider:
         - s3:PutObject
       Resource:
         - arn:aws:s3:::${self:custom.s3Bucket}/*
+    - Effect: 'Allow'
+      Action:
+        - "sns:Publish"
+      Resource:
+        - ${self:custom.GitHubTopic}
 
 resources:
   Resources:
@@ -81,6 +95,13 @@ functions:
   github-import:
       name: CommunityGraphCLI-${self:custom.communityName}-GitHubImport
       handler: handler.github_import
+      events:
+        - sns:
+            topicName: GitHub-${file(${env:CONFIG_FILE, 'communitygraph.json'}):communityName}
+            displayName: Topic to process GitHub events
+  github-publish-events-import:
+      name: CommunityGraphCLI-${self:custom.communityName}-GitHubPublishEventsImport
+      handler: handler.github_publish_events_import
       events:
         - schedule: rate(1 hour)
   twitter-import:

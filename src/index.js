@@ -26,6 +26,7 @@ let regionParams = { 'region': 'us-east-1' }
 let kms = new AWS.KMS(regionParams);
 let s3 = new AWS.S3(regionParams);
 var ec2 = new AWS.EC2(regionParams);
+var sns = new AWS.SNS(regionParams);
 
 function _createKMSKeyAlias(communityName, kmsKeyArn) {
     let createAliasParams = {

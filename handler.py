@@ -5,11 +5,15 @@ import lib.github as github
 import lib.twitter as twitter
 import lib.schema as schema
 
+import datetime
+from datetime import timezone
+
 from lib.encryption import decrypt_value
 
 import json
 import os
 
+import boto3
 
 def read_config():
     config_file = os.getenv('CONFIG_FILE', 'communitygraph.json')
@@ -85,6 +89,22 @@ def meetup_groups_import(event, _):
                          meetup_key=meetup_key)
 
 
+def github_publish_events_import(event, context):
+    tag = config["tag"]
+
+    context_parts = context.invoked_function_arn.split(':')
+    topic_name = "GitHub-{0}".format(config["communityName"])
+    topic_arn = "arn:aws:sns:{region}:{account_id}:{topic}".format(region=context_parts[3], account_id=context_parts[4], topic=topic_name)
+
+    client = boto3.client('sns')
+
+    for tags in github.chunker(tag, 5):
+        start_date = (datetime.datetime.now(timezone.utc) - datetime.timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+        end_date = datetime.datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+        params = {"startDate": start_date, "endDate": end_date, "tags": tag}
+
+        client.publish(TopicArn= topic_arn, Message= json.dumps(params))
+
 def github_import(event, _):
     print("Event:", event)
 
@@ -95,11 +115,23 @@ def github_import(event, _):
     neo4j_user = write_credentials.get('user', "neo4j")
     neo4j_password = decrypt_value(write_credentials['password'])
     github_token = decrypt_value(credentials["githubToken"])
-    # tag = " OR ".join(config["tag"])
-    tag = config["tag"]
 
-    github.import_github(neo4j_url=neo4j_url, neo4j_user=neo4j_user, neo4j_pass=neo4j_password, tag=tag,
-                         github_token=github_token)
+    # tag = " OR ".join(config["tag"])
+    # tag = config["tag"]
+
+    importer = github.GitHubImporter(neo4j_url, neo4j_user, neo4j_password, github_token)
+
+    for record in event["Records"]:
+        message = json.loads(record["Sns"]["Message"])
+
+        tags = message["tags"]
+        start_date = message["startDate"]
+        end_date = message["endDate"]
+
+        importer.process_tag(tags, start_date, end_date)
+
+        # github.import_github(neo4j_url=neo4j_url, neo4j_user=neo4j_user, neo4j_pass=neo4j_password, tag=tag,
+        #                      github_token=github_token)
 
 def constraints(event, _):
     print("Event:", event)
@@ -110,7 +142,7 @@ def constraints(event, _):
     neo4j_url = "bolt://{url}".format(url=config.get("serverUrl", "localhost"))
     neo4j_user = write_credentials.get('user', "neo4j")
     neo4j_password = decrypt_value(write_credentials['password'])
-    
+
     schema.configure_constraints(neo4j_url=neo4j_url, neo4j_user=neo4j_user, neo4j_pass=neo4j_password)
 
 def twitter_import(event, _):
