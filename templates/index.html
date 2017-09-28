@@ -74,14 +74,14 @@
 				    "order": [[ 3, "asc" ]],
 				     "columnDefs": [
                         {
-                            "targets": [ 3 ],
+                            "targets": [ 4 ],
                             "visible": false,
                             "searchable": false
                         },
 
                         {
-                            "targets": [ 2 ],
-                            "orderData": [ 3 ]
+                            "targets": [ 3 ],
+                            "orderData": [ 4 ]
                         },
                     ]
 				});
@@ -240,6 +240,7 @@
                 <tr>
                     <th>Event</th>
                     <th>Group</th>
+                    <th>Location</th>
                     <th>Time</th>
                     <th>Timestamp</th>
                 </tr>
@@ -249,7 +250,8 @@
                 {% for r in meetup_records %}
                 <tr>
                     <td><a href="{{r['event']['link']}}" target="_blank">{{ r['event']['title'] }}</a></td>
-                    <td>{{ r['group']['title'] }}</td>
+                    <td><a href="{{r['group']['link']}}" target="_blank">{{ r['group']['title'] }}</a></td>
+                    <td>{{ r['group']['city'] }}, {{ r['group']['country'] }}</td>
                     <td>{{ r['event']['time'] | humanise }}</td>
                     <td>{{ r['event']['time'] }}</td>
                 </tr>
