@@ -16,10 +16,11 @@ ORDER BY l.cleanUrl, toInteger(t.created)
 
 WITH oneWeekAgo, l.cleanUrl AS url, l.title AS title, collect(t) AS tweets
 WHERE toInteger(tweets[0].created) is not null AND tweets[0].created > oneWeekAgo AND NONE(rogue in ["abizy.com", "twitter.com", "corneey.com"] WHERE url contains rogue)
-RETURN url, title,
+WITH url, title,
        REDUCE(acc = 0, tweet IN tweets | acc + tweet.favorites + size((tweet)<-[:RETWEETED]-())) AS score,
        tweets[0].created * 1000 AS dateCreated,
        [ tweet IN tweets | head([ (tweet)<-[:POSTED]-(user) | user.screen_name]) ] AS users
+RETURN url, title, score, dateCreated, apoc.coll.toSet(users) AS users       
 ORDER BY score DESC
 """
 
