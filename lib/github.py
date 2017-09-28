@@ -25,8 +25,8 @@ SET repo.favorites = r.stargazers_count,
     repo.open_issues = r.open_issues, repo.branch = r.default_branch, repo.description = r.description,
     repo.isPrivate = r.isPrivate
 
-MERGE (owner:User:GitHub {id:r.owner.id})
-SET owner.name = r.owner.login, owner.type=r.owner.type, owner.full_name = r.owner.name,
+MERGE (owner:GitHubAccount {id:r.owner.id})
+SET owner:User, owner:GitHub, owner.name = r.owner.login, owner.type=r.owner.type, owner.full_name = r.owner.name,
     owner.location = r.owner.location, owner.avatarUrl = r.owner.avatarUrl
 MERGE (owner)-[:CREATED]->(repo)
 """

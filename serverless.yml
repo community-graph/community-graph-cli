@@ -103,3 +103,6 @@ functions:
       handler: handler.twitter_unshorten_links
       events:
         - schedule: rate(1 hour)
+  constraints:
+      name: CommunityGraphCLI-${self:custom.communityName}-Constraints
+      handler: handler.constraints

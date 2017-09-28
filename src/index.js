@@ -46,9 +46,6 @@ function _createS3Bucket(s3BucketName) {
     return s3.createBucket(params).promise()    
 }
 
-const validCommands = [null, 'create', "dump-config", "update", "encrypt", "create-neo4j-server", "create-s3-bucket", "create-kms-key"]
-const { command, argv } = commandLineCommands(validCommands)
-
 function encryptKey(data, keyName, mapToUpdate) {
     let kmsKey = data.kmsKeyArn;    
     let valueToEncrypt = data[keyName];
@@ -97,6 +94,9 @@ function writeCommunityGraphJson(data) {
         }
     });    
 }
+
+const validCommands = [null, 'create', "dump-config", "deploy", "encrypt", "create-neo4j-server", "create-s3-bucket", "create-kms-key"]
+const { command, argv } = commandLineCommands(validCommands)
 
 // MAIN
 if (command == null) {
@@ -176,7 +176,7 @@ if (command == null) {
             console.error("Error while creating community graph:", err);
             process.exit(1);
         })
-    } else if (command == "update") {
+    } else if (command == "deploy") {
         let welcome = new Promise((resolve, reject) => {
             console.log("Deploying the community graph's lambdas to AWS");
             resolve();

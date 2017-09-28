@@ -3,6 +3,7 @@ import lib.so as so
 import lib.meetup as meetup
 import lib.github as github
 import lib.twitter as twitter
+import lib.schema as schema
 
 from lib.encryption import decrypt_value
 
@@ -100,6 +101,17 @@ def github_import(event, _):
     github.import_github(neo4j_url=neo4j_url, neo4j_user=neo4j_user, neo4j_pass=neo4j_password, tag=tag,
                          github_token=github_token)
 
+def constraints(event, _):
+    print("Event:", event)
+
+    credentials = config["credentials"]
+    write_credentials = credentials["write"]
+
+    neo4j_url = "bolt://{url}".format(url=config.get("serverUrl", "localhost"))
+    neo4j_user = write_credentials.get('user', "neo4j")
+    neo4j_password = decrypt_value(write_credentials['password'])
+    
+    schema.configure_constraints(neo4j_url=neo4j_url, neo4j_user=neo4j_user, neo4j_pass=neo4j_password)
 
 def twitter_import(event, _):
     print("Event:", event)

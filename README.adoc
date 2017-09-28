@@ -55,10 +55,10 @@ On completion the `create` command populates `communitygraph.json` with the valu
 }
 ```
 
-If you want any changes you make in this file to be reflected you can run the following command:
+To deploy the lambdas to AWS and have them populate the graph you'll need to run the following command:
 
 ```
-community-graph update
+community-graph deploy
 ```
 
 We'll be automating more of this so it's a more friendly user experience. 

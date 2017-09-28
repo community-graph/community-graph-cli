@@ -11,7 +11,7 @@ MERGE (question:Question:Content:StackOverflow {id:q.question_id})
 SET question.favorites = q.favorite_count, question.updated = q.last_activity_date, question.views = q.view_count,
     question.upVotes = q.up_vote_count, question.downVotes = q.down_vote_count
 FOREACH (q_owner IN [o in [q.owner] WHERE o.user_id IS NOT NULL] |
-  MERGE (owner:User:StackOverflow {id:q.owner.user_id}) ON CREATE SET owner.name = q.owner.display_name
+  MERGE (owner:StackOverflowAccount {id:q.owner.user_id}) ON CREATE SET owner.name = q.owner.display_name SET owner:User, owner:StackOverflow
   MERGE (owner)-[:POSTED]->(question)
 )
 FOREACH (tagName IN q.tags | MERGE (tag:Tag{name:tagName}) SET tag:StackOverflow MERGE (question)-[:TAGGED]->(tag))
@@ -51,7 +51,6 @@ def import_so(neo4j_url, neo4j_user, neo4j_pass, tag, so_key):
             while has_more:
                 api_url = construct_uri(page, items, tag, max_date, so_key)
 
-                # Send GET request.
                 response = requests.get(api_url, headers={"accept": "application/json"})
                 print(response.status_code)
                 if response.status_code != 200:
