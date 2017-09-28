@@ -27,11 +27,11 @@ let kms = new AWS.KMS(regionParams);
 let s3 = new AWS.S3(regionParams);
 var ec2 = new AWS.EC2(regionParams);
 
-function _createKMSKeyAlias(communityName, kmsKeyArn) { 
+function _createKMSKeyAlias(communityName, kmsKeyArn) {
     let createAliasParams = {
         AliasName: "alias/CommunityGraphCLI-" + communityName,
         TargetKeyId: kmsKeyArn
-    };  
+    };
 
     return kms.createAlias(createAliasParams).promise();
 }
@@ -41,13 +41,13 @@ function _createKMSKey() {
 }
 
 function _createS3Bucket(s3BucketName) {
-    console.log("Creating bucket: " + s3BucketName);    
-    var params = { Bucket: s3BucketName, ACL: "public-read" };    
-    return s3.createBucket(params).promise()    
+    console.log("Creating bucket: " + s3BucketName);
+    var params = { Bucket: s3BucketName, ACL: "public-read" };
+    return s3.createBucket(params).promise()
 }
 
 function encryptKey(data, keyName, mapToUpdate) {
-    let kmsKey = data.kmsKeyArn;    
+    let kmsKey = data.kmsKeyArn;
     let valueToEncrypt = data[keyName];
 
     console.log("Encrypting " + keyName + ":" + valueToEncrypt);
@@ -58,13 +58,13 @@ function encryptKey(data, keyName, mapToUpdate) {
             resolve(data);
         } else {
             let params = { KeyId: kmsKey, Plaintext: valueToEncrypt };
-            
+
             kms.encrypt(params).promise().then(result => {
                 mapToUpdate[keyName] = result.CiphertextBlob.toString('base64');
                 resolve(data);
             }).catch(reject);
         }
-    });  
+    });
 }
 
 function writeCommunityGraphJson(data) {
@@ -76,7 +76,7 @@ function writeCommunityGraphJson(data) {
     communityGraphParams.twitterSearch = data.twitterSearch;
 
     communityGraphParams.credentials.keyArn = data.kmsKeyArn;
-    
+
     communityGraphParams.credentials.readonly.user = data.readOnlyServerUsername || "neo4j";
     communityGraphParams.credentials.readonly.password = communityGraphParams.credentials.readonly.readOnlyServerPassword;
     communityGraphParams.credentials.write.user = data.serverUsername || "neo4j";
@@ -86,16 +86,16 @@ function writeCommunityGraphJson(data) {
     delete communityGraphParams.credentials.write.serverPassword;
 
     return new Promise((resolve, reject) => {
-        try {            
+        try {
             fs.writeFileSync("communitygraph.json", JSON.stringify(communityGraphParams, null, 4));
             resolve(data);
         } catch (e) {
             reject(e);
         }
-    });    
+    });
 }
 
-const validCommands = [null, 'create', "dump-config", "deploy", "encrypt", "create-neo4j-server", "create-s3-bucket", "create-kms-key"]
+const validCommands = [null, 'create', "dump-config", "deploy", "encrypt", "create-neo4j-server", "create-s3-bucket", "create-kms-key", "init"]
 const { command, argv } = commandLineCommands(validCommands)
 
 // MAIN
@@ -137,7 +137,7 @@ if (command == null) {
             });
         }).then(data => {
             let communityName = data.communityName;
-            let s3BucketName = "community-graph-" + communityName.toLowerCase();            
+            let s3BucketName = "community-graph-" + communityName.toLowerCase();
             return new Promise((resolve, reject) => {
                 if (!data.s3Bucket) {
                     console.log("Creating S3 bucket: " + s3BucketName)
@@ -148,28 +148,28 @@ if (command == null) {
                 } else {
                     console.log("Using S3 bucket: " + data.s3Bucket)
                     resolve(data);
-                }                
-            }); 
+                }
+            });
         }).then(data => {
-            return encryptKey(data, "meetupApiKey", communityGraphParams.credentials);          
+            return encryptKey(data, "meetupApiKey", communityGraphParams.credentials);
         }).then(data => {
-            return encryptKey(data, "stackOverflowApiKey", communityGraphParams.credentials);          
+            return encryptKey(data, "stackOverflowApiKey", communityGraphParams.credentials);
         }).then(data => {
-            return encryptKey(data, "githubToken", communityGraphParams.credentials);          
+            return encryptKey(data, "githubToken", communityGraphParams.credentials);
         }).then(data => {
-            return encryptKey(data, "twitterBearer", communityGraphParams.credentials);          
-        }).then(data => {            
+            return encryptKey(data, "twitterBearer", communityGraphParams.credentials);
+        }).then(data => {
             if (!data.serverUrl) {
                 return Promise.resolve(data);
             } else {
                 return encryptKey(data, "readOnlyServerPassword", communityGraphParams.credentials.readonly);
-            }            
+            }
         }).then(data => {
             if (!data.serverUrl) {
                 return Promise.resolve(data);
             } else {
                 return encryptKey(data, "serverPassword", communityGraphParams.credentials.write);
-            }               
+            }
         }).then(data => {
             return writeCommunityGraphJson(data);
         }).catch(err => {
@@ -187,11 +187,11 @@ if (command == null) {
         .then(prereqs.removePyCache).then(data => {
             const serverless = new Serverless({});
             const CLI = require('serverless/lib/classes/CLI');
-    
+
             CLI.prototype.processInput = function () {
                 return { commands: ['deploy'], options: { help: false } };
             };
-        
+
             serverless.cli = CLI;
             return serverless.init().then(() => serverless.run());
         }).then(data => {
@@ -219,18 +219,42 @@ if (command == null) {
                 .then(data => console.log(data.CiphertextBlob.toString('base64')))
                 .catch(err => console.log(err, err.stack));
         }
+    } else if(command == "init") {
+        let welcome = new Promise((resolve, reject) => {
+            console.log("Initialising the community graph");
+            resolve();
+        });
+
+        welcome
+        .then(prereqs.checkPythonVersion)
+        .then(prereqs.removePyCache).then(data => {
+            const serverless = new Serverless({});
+            const CLI = require('serverless/lib/classes/CLI');
+
+            CLI.prototype.processInput = function () {
+                return { commands: ['invoke'], options: { help: false, function: "constraints" } };
+            };
+
+            serverless.cli = CLI;
+            return serverless.init().then(() => serverless.run());
+        }).then(data => {
+            console.log("Community graph initialised. You can now run the deploy command to continuously update it.");
+        }).catch(err => {
+            console.error("Error updating community graph:", err);
+            process.exit(1);
+        });
     } else if (command == "create-neo4j-server") {
         console.log("Creating a Neo4j server");
 
         let args = parseArgs(argv);
         let dryRun = "dry-run" in args;
         console.log("Dry run?:" + dryRun);
-            
+
         let serverParams = {};
         serverParams.keyName = "community-graph-golang-" + uuidv4();
         serverParams.groupName = "community-graph-security-golang-" + uuidv4();
 
-        ec2.createKeyPair({ KeyName: serverParams.keyName, DryRun: dryRun }).promise().then(data => { 
+        ec2.createKeyPair({ KeyName: serverParams.keyName, DryRun: dryRun }).promise().then(data => {
             console.log(data);
             return ec2.createSecurityGroup({ Description: "Community Graph Security Group", GroupName: serverParams.groupName, DryRun: dryRun }).promise()
         }).then(data => {
@@ -275,7 +299,7 @@ if (command == null) {
         }).catch(err => console.log(err, err.stack));
     } else if (command == "create-s3-bucket") {
         let config = JSON.parse(fs.readFileSync('communitygraph.json', 'utf8'));
-        let communityName = config["communityName"];        
+        let communityName = config["communityName"];
         let s3BucketName = "community-graph-" + communityName.toLowerCase();
 
         _createS3Bucket(s3BucketName)
@@ -285,7 +309,7 @@ if (command == null) {
                 console.log(err);
             });
     } else if(command == "create-kms-key") {
-        let args = parseArgs(argv); 
+        let args = parseArgs(argv);
         let config = JSON.parse(fs.readFileSync('communitygraph.json', 'utf8'));
         let communityName = config["communityName"];
 
@@ -296,7 +320,7 @@ if (command == null) {
             }).then(data => {
                 console.log("Assigned alias to KMS key");
             }).catch(err => {
-                console.log(err, err.stack); 
-            }); 
+                console.log(err, err.stack);
+            });
     }
 }

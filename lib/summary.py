@@ -20,7 +20,7 @@ WITH url, title,
        REDUCE(acc = 0, tweet IN tweets | acc + tweet.favorites + size((tweet)<-[:RETWEETED]-())) AS score,
        tweets[0].created * 1000 AS dateCreated,
        [ tweet IN tweets | head([ (tweet)<-[:POSTED]-(user) | user.screen_name]) ] AS users
-RETURN url, title, score, dateCreated, apoc.coll.toSet(users) AS users       
+RETURN url, title, score, dateCreated, apoc.coll.toSet(users) AS users
 ORDER BY score DESC
 """
 
