@@ -116,9 +116,6 @@ def github_import(event, _):
     neo4j_password = decrypt_value(write_credentials['password'])
     github_token = decrypt_value(credentials["githubToken"])
 
-    # tag = " OR ".join(config["tag"])
-    # tag = config["tag"]
-
     importer = github.GitHubImporter(neo4j_url, neo4j_user, neo4j_password, github_token)
 
     for record in event["Records"]:
@@ -130,8 +127,6 @@ def github_import(event, _):
 
         importer.process_tag(tags, start_date, end_date)
 
-        # github.import_github(neo4j_url=neo4j_url, neo4j_user=neo4j_user, neo4j_pass=neo4j_password, tag=tag,
-        #                      github_token=github_token)
 
 def constraints(event, _):
     print("Event:", event)
