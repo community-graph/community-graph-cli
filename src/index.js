@@ -267,53 +267,74 @@ if (command == null) {
         let dryRun = "dry-run" in args;
         console.log("Dry run?:" + dryRun);
 
-        let serverParams = {};
-        serverParams.keyName = "community-graph-golang-" + uuidv4();
-        serverParams.groupName = "community-graph-security-golang-" + uuidv4();
+        if (!args["communityName"]) {
+            console.log("Usage: community-graph create-neo4j-server --communityName [Community Name]")
+        } else {
+            let serverParams = {};
+            let communityName = args["communityName"];
+            let uuid = uuidv4();
+            serverParams.keyName = `community-graph-keypair-${communityName}-${uuid}`;
+            serverParams.groupName = `community-graph-security-${communityName}-${uuid}`;
 
-        ec2.createKeyPair({ KeyName: serverParams.keyName, DryRun: dryRun }).promise().then(data => {
-            console.log(data);
-            return ec2.createSecurityGroup({ Description: "Community Graph Security Group", GroupName: serverParams.groupName, DryRun: dryRun }).promise()
-        }).then(data => {
-            console.log("Created Group Id:" + data.GroupId);
-            serverParams["groupId"] = data.GroupId;
-            var ports = [22, 7474, 7473, 7687];
-            return Promise.all(ports.map(function (port) {
+            ec2.createKeyPair({ KeyName: serverParams.keyName, DryRun: dryRun }).promise().then(data => {
+                console.log("Key pair created. Save this to a file - you'll need to use it if you want to ssh into the Neo4j server");
+                console.log(data['KeyMaterial']);
+                return ec2.createSecurityGroup({ Description: "Community Graph Security Group", GroupName: serverParams.groupName, DryRun: dryRun }).promise()
+            }).then(data => {
+                console.log("Created Group Id:" + data.GroupId);
+                serverParams["groupId"] = data.GroupId;
+                var ports = [22, 7474, 7473, 7687];
+                return Promise.all(ports.map(function (port) {
+                    let params = {
+                        GroupId: data.GroupId,
+                        IpProtocol: "tcp",
+                        FromPort: port,
+                        ToPort: port,
+                        CidrIp: "0.0.0.0/0",
+                        DryRun: dryRun
+                    };
+                    return ec2.authorizeSecurityGroupIngress(params).promise();
+                }));
+            }).then(data => {
+                console.log("Opened Neo4j ports");
                 let params = {
-                    GroupId: data.GroupId,
-                    IpProtocol: "tcp",
-                    FromPort: port,
-                    ToPort: port,
-                    CidrIp: "0.0.0.0/0",
-                    DryRun: dryRun
+                    ImageId: "ami-f03c4fe6",
+                    MinCount: 1,
+                    MaxCount: 1,
+                    InstanceType: "m3.medium",
+                    KeyName: serverParams.keyName,
+                    SecurityGroupIds: [serverParams.groupId],
+                    DryRun: dryRun,
+                    UserData: new Buffer(`#!/bin/bash \n
+                    sudo apt-get update \n
+                    sudo apt install wget \n
+                    wget https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/download/3.2.0.3/apoc-3.2.0.3-all.jar \n
+                    sudo cp apoc-3.2.0.3-all.jar /var/lib/neo4j/plugins/ \n`).toString('base64')
                 };
-                return ec2.authorizeSecurityGroupIngress(params).promise();
-            }));
-        }).then(data => {
-            console.log(data);
-            let params = {
-                ImageId: "ami-f03c4fe6",
-                MinCount: 1,
-                MaxCount: 1,
-                InstanceType: "m3.medium",
-                KeyName: serverParams.keyName,
-                SecurityGroupIds: [serverParams.groupId],
-                DryRun: dryRun
-            };
-            return ec2.runInstances(params).promise();
-        }).then(data => {
-            let ourInstance = data.Instances[0];
-            console.log("Instance Id: " + ourInstance.InstanceId);
+                return ec2.runInstances(params).promise();
+            }).then(data => {
+                let ourInstance = data.Instances[0];
+                console.log("Instance Id: " + ourInstance.InstanceId);
+                serverParams.instanceId = ourInstance.InstanceId;
 
-            let params = {
-                InstanceIds: [ourInstance.InstanceId]
-            };
-            return ec2.waitFor("instanceRunning", params).promise();
-        }).then(data => {
-            let reservations = data.Reservations;
-            let instances = reservations[0].Instances;
-            console.log("Public DNS Name: " + instances[0].PublicDnsName)
-        }).catch(err => console.log(err, err.stack));
+                let params = {
+                    InstanceIds: [ourInstance.InstanceId]
+                };
+                return ec2.waitFor("instanceRunning", params).promise();
+            }).then(data => {
+                let reservations = data.Reservations;
+                let instances = reservations[0].Instances;
+                serverParams.publicDnsName = instances[0].PublicDnsName;
+
+                console.log("Your Neo4j server is now ready!");
+                console.log("You'll need to login to the server and change the default password:")
+                console.log(`http://${serverParams.publicDnsName}:7474`)
+                console.log(`User:neo4j, Password:${serverParams.instanceId}`)
+                console.log("You can also create a Read Only user, which will be used for non write operations, by running the following procedure:")
+                console.log(`call dbms.security.createUser("<username>", "<password>", false)`);
+
+            }).catch(err => console.log(err, err.stack));
+        }
     } else if (command == "create-s3-bucket") {
         let config = JSON.parse(fs.readFileSync('communitygraph.json', 'utf8'));
         let communityName = config["communityName"];
