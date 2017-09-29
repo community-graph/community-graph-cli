@@ -306,9 +306,7 @@ if (command == null) {
                     SecurityGroupIds: [serverParams.groupId],
                     DryRun: dryRun,
                     UserData: new Buffer(`#!/bin/bash \n
-                    sudo apt-get update \n
-                    sudo apt install wget \n
-                    wget https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/download/3.2.0.3/apoc-3.2.0.3-all.jar \n
+                    curl -L https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/download/3.2.0.3/apoc-3.2.0.3-all.jar -O \n
                     sudo cp apoc-3.2.0.3-all.jar /var/lib/neo4j/plugins/ \n`).toString('base64')
                 };
                 return ec2.runInstances(params).promise();
