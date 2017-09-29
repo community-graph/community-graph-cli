@@ -73,7 +73,7 @@ def import_so(neo4j_url, neo4j_user, neo4j_pass, tag, so_key):
 
 
 def construct_uri(page, items, tag, max_date, so_key):
-    api_url = "https://api.stackexchange.com/2.2/search?page={page}&pagesize={items}&order=asc&sort=creation&tagged={tag}&site=stackoverflow&key={key}".format(
+    api_url = "https://api.stackexchange.com/2.2/search?page={page}&pagesize={items}&order=asc&sort=creation&tagged={tag}&site=stackoverflow&key={key}&filter=!5-i6Zw8Y)4W7vpy91PMYsKM-k9yzEsSC1_Uxlf".format(
         tag=tag, page=page, items=items, key=so_key)
 
     if max_date is not None:
