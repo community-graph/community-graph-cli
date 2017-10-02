@@ -96,14 +96,15 @@ def github_publish_events_import(event, context):
     topic_name = "GitHub-{0}".format(config["communityName"])
     topic_arn = "arn:aws:sns:{region}:{account_id}:{topic}".format(region=context_parts[3], account_id=context_parts[4], topic=topic_name)
 
-    client = boto3.client('sns')
+    sns = boto3.client('sns')
 
     for tags in github.chunker(tag, 5):
         start_date = (datetime.datetime.now(timezone.utc) - datetime.timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%S+00:00")
         end_date = datetime.datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+
         params = {"startDate": start_date, "endDate": end_date, "tags": tag}
 
-        client.publish(TopicArn= topic_arn, Message= json.dumps(params))
+        sns.publish(TopicArn= topic_arn, Message= json.dumps(params))
 
 def github_import(event, _):
     print("Event:", event)

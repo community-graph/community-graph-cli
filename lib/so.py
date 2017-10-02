@@ -6,18 +6,20 @@ from neo4j.v1 import GraphDatabase, basic_auth
 import_query = """\
 WITH {json} as data
 UNWIND data.items as q
-MERGE (question:Question:Content:StackOverflow {id:q.question_id})
+MERGE (question:Question {id:q.question_id})
   ON CREATE SET question.title = q.title, question.url = q.share_link, question.created = q.creation_date
 SET question.favorites = q.favorite_count, question.updated = q.last_activity_date, question.views = q.view_count,
-    question.upVotes = q.up_vote_count, question.downVotes = q.down_vote_count
+    question.upVotes = q.up_vote_count, question.downVotes = q.down_vote_count,
+    question::Content, question:StackOverflow
 FOREACH (q_owner IN [o in [q.owner] WHERE o.user_id IS NOT NULL] |
   MERGE (owner:StackOverflowAccount {id:q.owner.user_id}) ON CREATE SET owner.name = q.owner.display_name SET owner:User, owner:StackOverflow
   MERGE (owner)-[:POSTED]->(question)
 )
 FOREACH (tagName IN q.tags | MERGE (tag:Tag{name:tagName}) SET tag:StackOverflow MERGE (question)-[:TAGGED]->(tag))
 FOREACH (a IN q.answers |
-   MERGE (answer:Answer:Content:StackOverflow {id:a.answer_id})
-   SET answer.accepted = a.is_accepted, answer.upVotes = a.up_vote_count, answer.downVotes = a.down_vote_count
+   MERGE (answer:Answer {id:a.answer_id})
+   SET answer.accepted = a.is_accepted, answer.upVotes = a.up_vote_count, answer.downVotes = a.down_vote_count,
+       answer:Content, answer:StackOverflow
    MERGE (question)<-[:ANSWERED]-(answer)
    FOREACH (a_owner IN filter(o IN [a.owner] where o.user_id is not null) |
      MERGE (answerer:User:StackOverflow {id:a_owner.user_id})
@@ -35,8 +37,21 @@ ORDER BY question.created  DESC
 limit 1
 """
 
+class SOImporter:
+    def __init__(self, neo4j_url, neo4j_user, neo4j_pass, so_key):
+        self.neo4j_url = neo4j_url
+        self.neo4j_user = neo4j_user
+        self.neo4j_pass = neo4j_pass
+        self.so_key = so_key
+
+    def process_date_range(tag, start_date, end_date):
+        print(tag, start_date, end_date)
+
 
 def import_so(neo4j_url, neo4j_user, neo4j_pass, tag, so_key):
+    # importer = SOImporter(neo4j_url, neo4j_user, neo4j_pass, so_key)
+    # importer.process_date_range(tag, start_date, end_date)
+
     with GraphDatabase.driver(neo4j_url, auth=basic_auth(neo4j_user, neo4j_pass)) as driver:
         with driver.session() as session:
             page = 1
