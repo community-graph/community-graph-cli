@@ -7,6 +7,7 @@ import lib.schema as schema
 
 import datetime
 from datetime import timezone
+from dateutil import parser
 
 from lib.encryption import decrypt_value
 
@@ -24,6 +25,18 @@ def read_config():
 
 config = read_config()
 
+def constraints(event, _):
+    print("Event:", event)
+
+    credentials = config["credentials"]
+    write_credentials = credentials["write"]
+
+    neo4j_url = "bolt://{url}".format(url=config.get("serverUrl", "localhost"))
+    neo4j_user = write_credentials.get('user', "neo4j")
+    neo4j_password = decrypt_value(write_credentials['password'])
+
+    schema.configure_constraints(neo4j_url=neo4j_url, neo4j_user=neo4j_user, neo4j_pass=neo4j_password)
+
 
 def generate_page_summary(event, _):
     print("Event:", event)
@@ -40,6 +53,23 @@ def generate_page_summary(event, _):
 
     summary.generate(url, user, password, title, short_name, logo_src)
 
+def as_timestamp(dt):
+    return int(datetime.datetime.timestamp(dt))
+
+def so_publish_events_import(event, context):
+    tag = config["tag"]
+
+    context_parts = context.invoked_function_arn.split(':')
+    topic_name = "StackOverflow-{0}".format(config["communityName"])
+    topic_arn = "arn:aws:sns:{region}:{account_id}:{topic}".format(region=context_parts[3], account_id=context_parts[4], topic=topic_name)
+
+    sns = boto3.client('sns')
+
+    start_date = (datetime.datetime.now(timezone.utc) - datetime.timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+    end_date = datetime.datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+
+    params = {"startDate": start_date, "endDate": end_date, "tags": tag}
+    sns.publish(TopicArn= topic_arn, Message= json.dumps(params))
 
 def so_import(event, _):
     print("Event:", event)
@@ -50,13 +80,20 @@ def so_import(event, _):
     write_credentials = credentials["write"]
     neo4j_user = write_credentials.get('user', "neo4j")
     neo4j_password = decrypt_value(write_credentials['password'])
-
     so_key = decrypt_value(credentials["stackOverflowApiKey"])
 
-    tag = ";".join(config["tag"])
-    print("Importing SO questions with tag: {tag}".format(tag = tag))
+    importer = so.SOImporter(neo4j_url, neo4j_user, neo4j_password, so_key)
 
-    so.import_so(neo4j_url=neo4j_url, neo4j_user=neo4j_user, neo4j_pass=neo4j_password, tag=tag, so_key = so_key)
+    for record in event["Records"]:
+        message = json.loads(record["Sns"]["Message"])
+
+        tags = message["tags"]
+        start_date = as_timestamp(parser.parse(message["startDate"]))
+        end_date = as_timestamp(parser.parse(message["endDate"]))
+
+        importer.process_tag(tags, start_date, end_date)
+
+    # so.import_so(neo4j_url=neo4j_url, neo4j_user=neo4j_user, neo4j_pass=neo4j_password, tag=tag, so_key = so_key)
 
 
 def meetup_events_import(event, _):
@@ -128,18 +165,6 @@ def github_import(event, _):
 
         importer.process_tag(tags, start_date, end_date)
 
-
-def constraints(event, _):
-    print("Event:", event)
-
-    credentials = config["credentials"]
-    write_credentials = credentials["write"]
-
-    neo4j_url = "bolt://{url}".format(url=config.get("serverUrl", "localhost"))
-    neo4j_user = write_credentials.get('user', "neo4j")
-    neo4j_password = decrypt_value(write_credentials['password'])
-
-    schema.configure_constraints(neo4j_url=neo4j_url, neo4j_user=neo4j_user, neo4j_pass=neo4j_password)
 
 def twitter_import(event, _):
     print("Event:", event)
