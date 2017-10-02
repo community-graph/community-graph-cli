@@ -81,6 +81,13 @@ functions:
       name: CommunityGraphCLI-${self:custom.communityName}-StackOverflowImport
       handler: handler.so_import
       events:
+        - sns:
+            topicName: StackOverflow-${file(${env:CONFIG_FILE, 'communitygraph.json'}):communityName}
+            displayName: Topic to process StackOverflow events
+  so-publish-events-import:
+      name: CommunityGraphCLI-${self:custom.communityName}-StackOverflowPublishEventsImport
+      handler: handler.so_publish_events_import
+      events:
         - schedule: rate(1 hour)
   meetup-events-import:
       name: CommunityGraphCLI-${self:custom.communityName}-MeetupEventsImport

@@ -93,8 +93,6 @@ def so_import(event, _):
 
         importer.process_tag(tags, start_date, end_date)
 
-    # so.import_so(neo4j_url=neo4j_url, neo4j_user=neo4j_user, neo4j_pass=neo4j_password, tag=tag, so_key = so_key)
-
 
 def meetup_events_import(event, _):
     print("Event:", event)
