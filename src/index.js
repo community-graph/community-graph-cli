@@ -177,31 +177,7 @@ if (command == null) {
             console.error("Error while creating community graph:", err);
             process.exit(1);
         })
-    } else if (command == "deploy") {
-        let welcome = new Promise((resolve, reject) => {
-            console.log("Deploying the community graph's lambdas to AWS");
-            resolve();
-        });
-
-        welcome
-        .then(prereqs.checkPythonVersion)
-        .then(prereqs.removePyCache).then(data => {
-            const serverless = new Serverless({});
-            const CLI = require('serverless/lib/classes/CLI');
-
-            CLI.prototype.processInput = function () {
-                return { commands: ['deploy'], options: { help: false } };
-            };
-
-            serverless.cli = CLI;
-            return serverless.init().then(() => serverless.run());
-        }).then(data => {
-            console.log("Lambdas deployed");
-        }).catch(err => {
-            console.error("Error updating community graph:", err);
-            process.exit(1);
-        });
-    }  else if (command == "create-neo4j-server") {
+    } else if (command == "create-neo4j-server") {
         console.log("Creating a Neo4j server");
 
         let args = parseArgs(argv);
