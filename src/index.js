@@ -314,17 +314,6 @@ if (command == null) {
 
             }).catch(err => console.log(err, err.stack));
         }
-    } else if (command == "create-s3-bucket") {
-        let config = JSON.parse(fs.readFileSync('communitygraph.json', 'utf8'));
-        let communityName = config["communityName"];
-        let s3BucketName = "community-graph-" + communityName.toLowerCase();
-
-        _createS3Bucket(s3BucketName)
-            .then(data => {
-                console.log("Created bucket: " + data.Location.replace("/", ""));
-            }).catch(err => {
-                console.log(err);
-            });
     } else if(command == "create-kms-key") {
         let args = parseArgs(argv);
         let config = JSON.parse(fs.readFileSync('communitygraph.json', 'utf8'));
