@@ -16,6 +16,15 @@ custom:
         - Ref: AWS::Region
         - Ref: AWS::AccountId
         - GitHub-${file(${env:CONFIG_FILE, 'communitygraph.json'}):communityName}
+  StackOverflowTopic:
+    Fn::Join:
+      - ":"
+      - - arn
+        - aws
+        - sns
+        - Ref: AWS::Region
+        - Ref: AWS::AccountId
+        - StackOverflow-${file(${env:CONFIG_FILE, 'communitygraph.json'}):communityName}
 
 provider:
   name: aws
@@ -46,7 +55,7 @@ provider:
         - "sns:Publish"
       Resource:
         - ${self:custom.GitHubTopic}
-
+        - ${self:custom.StackOverflowTopic}
 resources:
   Resources:
     S3BucketPermissions:
