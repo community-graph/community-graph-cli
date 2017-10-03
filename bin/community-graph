@@ -11,4 +11,5 @@ program
 .command('search [query]', 'search with optional query').alias('s')
 .command('list', 'list packages installed')
 .command('status', 'status of the community graph')
+.command('dump-config', 'show all config')
 .parse(process.argv);

@@ -201,9 +201,6 @@ if (command == null) {
             console.error("Error updating community graph:", err);
             process.exit(1);
         });
-    } else if (command == "dump-config") {
-        var config = JSON.parse(fs.readFileSync('communitygraph.json', 'utf8'));
-        console.log(JSON.stringify(config, null, 4));
     } else if (command == "encrypt") {
         var config = JSON.parse(fs.readFileSync('communitygraph.json', 'utf8'));
         let kmsKey = config["credentials"]["keyArn"]
