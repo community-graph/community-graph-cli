@@ -1,2 +1,14 @@
 #!/usr/bin/env node
-require('../src/index');
+
+// require('../src/index');
+
+const program = require('commander');
+
+program
+.version('0.0.1')
+.description('Community Graph')
+.command('install [name]', 'install one or more packages').alias('i')
+.command('search [query]', 'search with optional query').alias('s')
+.command('list', 'list packages installed')
+.command('status', 'status of the community graph')
+.parse(process.argv);
