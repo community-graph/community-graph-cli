@@ -1,5 +1,8 @@
 const prereqs = require("../prereqs");
 const Serverless = require('serverless');
+const program = require('commander');
+
+program.parse(process.argv);
 
 let welcome = new Promise((resolve, reject) => {
     console.log("Initialising the community graph");

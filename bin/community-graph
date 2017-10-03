@@ -17,4 +17,5 @@ program
     .command('encrypt', 'Encrypt a value using KMS key')
     .command('create-neo4j-server', 'spins up a Neo4j server')
     .command('init', 'initialise the community graph - set constraints, load initial data')
+    .command('deploy', 'deploy the lambdas to AWS')
     .parse(process.argv);
