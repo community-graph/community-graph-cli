@@ -244,23 +244,7 @@ if (command == null) {
             console.error("Error updating community graph:", err);
             process.exit(1);
         });
-    } else if(command == "status") {
-        let welcome = new Promise((resolve, reject) => {
-            console.log("Checking the status of the community graph");
-            resolve();
-        });
-
-        welcome.then(data => {
-            let config = JSON.parse(fs.readFileSync('communitygraph.json', 'utf8'));
-
-            console.log("Neo4j browser URI: http://" + config["serverUrl"] + ":7474");
-            let s3Bucket = config["s3Bucket"];
-            console.log(`Summary page: https://s3.amazonaws.com/${s3Bucket}/${s3Bucket}.html`);
-        }).catch(err => {
-            console.error("Error retrieving the status of the community graph:", err);
-            process.exit(1);
-        });
-    }  else if (command == "create-neo4j-server") {
+    } else if (command == "create-neo4j-server") {
         console.log("Creating a Neo4j server");
 
         let args = parseArgs(argv);
