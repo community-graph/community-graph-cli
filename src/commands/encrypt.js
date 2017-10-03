@@ -16,11 +16,13 @@ var values = program.args;
 
 if (!values.length) {
   console.error('You must provide a value to encrypt');
+  program.help();
   process.exit(1);
 }
 
 if (values.length > 1) {
     console.error('You can only encrypt one value at a time. Try calling the command one time per value.');
+    program.help();
     process.exit(1);
   }
 

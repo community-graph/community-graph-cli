@@ -14,4 +14,7 @@ program
     .command('dump-config', 'show all config')
     .command('create-s3-bucket', 'create an S3 bucket to store the summary page')
     .command('create-kms-key', 'create a KMS key to use to encrypt credentials')
+    .command('encrypt', 'Encrypt a value using KMS key')
+    .command('create-neo4j-server', 'spins up a Neo4j server')
+    .command('init', 'initialise the community graph - set constraints, load initial data')
     .parse(process.argv);
