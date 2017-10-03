@@ -26,5 +26,6 @@ function createKMSKey() {
 module.exports = {
     createS3Bucket: createS3Bucket,
     createKMSKey: createKMSKey,
-    createKMSKeyAlias: createKMSKeyAlias
+    createKMSKeyAlias: createKMSKeyAlias,
+    kms: kms
 }

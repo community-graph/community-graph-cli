@@ -201,22 +201,6 @@ if (command == null) {
             console.error("Error updating community graph:", err);
             process.exit(1);
         });
-    } else if (command == "encrypt") {
-        var config = JSON.parse(fs.readFileSync('communitygraph.json', 'utf8'));
-        let kmsKey = config["credentials"]["keyArn"]
-        console.log("Encrypting with KMS Key: " + kmsKey);
-
-        let args = parseArgs(argv);
-        if (!args["value"]) {
-            console.log("Usage: community-graph encrypt --value [Unencrypted Value]")
-        } else {
-            let valueToEncrypt = args["value"];
-            let params = { KeyId: kmsKey, Plaintext: valueToEncrypt };
-
-            kms.encrypt(params).promise()
-                .then(data => console.log(data.CiphertextBlob.toString('base64')))
-                .catch(err => console.log(err, err.stack));
-        }
     } else if(command == "init") {
         let welcome = new Promise((resolve, reject) => {
             console.log("Initialising the community graph");
@@ -314,19 +298,5 @@ if (command == null) {
 
             }).catch(err => console.log(err, err.stack));
         }
-    } else if(command == "create-kms-key") {
-        let args = parseArgs(argv);
-        let config = JSON.parse(fs.readFileSync('communitygraph.json', 'utf8'));
-        let communityName = config["communityName"];
-
-        _createKMSKey()
-            .then(data => {
-                console.log("Created KMS key: " + data.KeyMetadata.Arn);
-                return _createKMSKeyAlias(communityName, data.KeyMetadata.Arn );
-            }).then(data => {
-                console.log("Assigned alias to KMS key");
-            }).catch(err => {
-                console.log(err, err.stack);
-            });
     }
 }
