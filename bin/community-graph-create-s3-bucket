@@ -1,0 +1,3 @@
+#!/usr/bin/env node
+
+require("../src/commands/create_s3_bucket")

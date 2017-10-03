@@ -1,4 +1,4 @@
 #!/usr/bin/env node
 
-require('../src/dump_config');
+require('../src/commands/dump_config');
 

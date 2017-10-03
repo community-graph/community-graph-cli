@@ -1,4 +1,4 @@
 #!/usr/bin/env node
 
-require('../src/status');
+require('../src/commands/status');
 
