@@ -18,4 +18,5 @@ program
     .command('create-neo4j-server', 'spins up a Neo4j server')
     .command('init', 'initialise the community graph - set constraints, load initial data')
     .command('deploy', 'deploy the lambdas to AWS')
+    .command('create', 'Create the community graph')
     .parse(process.argv);
