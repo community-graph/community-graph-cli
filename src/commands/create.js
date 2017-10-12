@@ -63,7 +63,7 @@ function encryptKey(data, keyName, mapToUpdate) {
 function writeCommunityGraphJson(data) {
     communityGraphParams.communityName = data.communityName;
     communityGraphParams.tag = data.tag;
-    communityGraphParams.serverUrl = data.serverUrl;
+    communityGraphParams.serverUrl = data.serverUrl || "<neo4j-server-url>";
     communityGraphParams.logo = data.logo;
     communityGraphParams.s3Bucket = data.s3Bucket;
     communityGraphParams.twitterSearch = data.twitterSearch;
@@ -136,13 +136,12 @@ welcome
         }
     });
 }).then(data => {
-    return encryptKey(data, "meetupApiKey", communityGraphParams.credentials);
-}).then(data => {
-    return encryptKey(data, "stackOverflowApiKey", communityGraphParams.credentials);
-}).then(data => {
-    return encryptKey(data, "githubToken", communityGraphParams.credentials);
-}).then(data => {
-    return encryptKey(data, "twitterBearer", communityGraphParams.credentials);
+    return Promise.all([
+        encryptKey(data, "meetupApiKey", communityGraphParams.credentials),
+        encryptKey(data, "stackOverflowApiKey", communityGraphParams.credentials),
+        encryptKey(data, "githubToken", communityGraphParams.credentials),
+        encryptKey(data, "twitterBearer", communityGraphParams.credentials)
+    ]);
 }).then(data => {
     if (!data.serverUrl) {
         return Promise.resolve(data);
@@ -158,7 +157,7 @@ welcome
 }).then(data => {
     return writeCommunityGraphJson(data);
 }).then(data => {
-    console.log(`Community Graph created! If you want to update any of the parameters edit communitygraph.json`)
+    console.log(`Community Graph created! If you want to update any of the parameters you'll need to edit communitygraph.json`)
 }).catch(err => {
     console.error("Error while creating community graph:", err);
     process.exit(1);
