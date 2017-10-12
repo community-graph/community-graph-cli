@@ -10,6 +10,7 @@ var ec2 = new AWS.EC2(regionParams);
 program
     .arguments("<communityName>")
     .option('-d, --dry-run', 'Is this a dry run?')
+    .option('-i, --instanceType [instanceType]', 'AWS Instance Type (default: m3.medium)')
     .parse(process.argv);
 
 var values = program.args;
@@ -20,10 +21,10 @@ if (!values.length) {
 }
 
 let communityName = values[0];
+let dryRun = program.dryRun || false;
+let instanceType = program.instanceType || "m3.medium";
 
 console.log(`Creating a Neo4j server for community ${communityName}`);
-
-let dryRun = program.dryRun || false;
 
 let serverParams = {};
 let uuid = uuidv4();
@@ -55,7 +56,7 @@ ec2.createKeyPair({ KeyName: serverParams.keyName, DryRun: dryRun }).promise().t
         ImageId: "ami-f03c4fe6",
         MinCount: 1,
         MaxCount: 1,
-        InstanceType: "m3.medium",
+        InstanceType: instanceType,
         KeyName: serverParams.keyName,
         SecurityGroupIds: [serverParams.groupId],
         DryRun: dryRun,
