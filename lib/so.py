@@ -67,7 +67,8 @@ class SOImporter:
                     print("has_more", json.get("has_more", False), "quota", json.get("quota_remaining", 0))
                     if json.get("items", None) is not None:
                         print(len(json["items"]))
-                        result = session.run(import_query, {"json": json})
+                        result = session.write_transaction(self.so_import, json)
+                        print(result)
                         print(result.consume().counters)
                         page = page + 1
 
@@ -78,6 +79,10 @@ class SOImporter:
                     if json.get('backoff', None) is not None:
                         print("backoff", json['backoff'])
                         time.sleep(json['backoff'] + 5)
+
+    @staticmethod
+    def so_import(tx, json):
+        return tx.run(import_query, json=json)
 
     def construct_uri(self, page, items, tag, from_date, to_date, so_key):
         api_url = "https://api.stackexchange.com/2.2/search?page={page}&pagesize={items}&order=asc&sort=creation&tagged={tag}&site=stackoverflow&key={key}&filter=!5-i6Zw8Y)4W7vpy91PMYsKM-k9yzEsSC1_Uxlf".format(
