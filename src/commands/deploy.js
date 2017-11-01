@@ -2,7 +2,13 @@ const prereqs = require("../prereqs");
 const Serverless = require('serverless');
 const program = require('commander');
 
-program.parse(process.argv);
+program
+    .option('-c, --config [configFile]', 'Config file')
+    .parse(process.argv);
+
+let configFile = program.config || "communitygraph.json";
+
+process.env.CONFIG_FILE = configFile;
 
 let welcome = new Promise((resolve, reject) => {
     console.log("Deploying the community graph's lambdas to AWS");

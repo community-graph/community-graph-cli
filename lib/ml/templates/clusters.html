@@ -1,0 +1,86 @@
+<html>
+
+    <head>
+        <title>Clusters</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+        <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/bs/jqc-1.12.4/dt-1.10.15/datatables.min.css"/>
+        <script type="text/javascript" src="https://cdn.datatables.net/v/bs/jqc-1.12.4/dt-1.10.15/datatables.min.js"></script>
+
+        <style>
+        .dataTables_wrapper {
+            padding-top: 5px;
+        }
+        </style>
+    </head>
+
+    <body>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u"
+            crossorigin="anonymous">
+
+        <div id="main-wrap">
+
+            <table class="table" id="runs" >
+                <thead>
+                    <tr>
+                        <th>Cluster Id</th>
+                        <th>Number of links</th>
+                        <th>Links</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cluster in counter.most_common() %}
+                    <tr>
+                        <td>
+                            {{cluster[0]}}
+                        </td>
+                        <td>{{ cluster[1] }}</td>
+
+                        <td>
+                            {% for item in clusters[cluster[0]] %}
+                                <a href="{{item}}">{{item}}</a>
+                            {% endfor %}
+
+                        </td>
+
+                        <td>
+
+                            <form method="POST" action="/clusters/{{cluster[0]}}">
+                                <input type="submit" value="Merge">
+                            </form>
+
+                        </td>
+
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <em>No clusters found</em>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+        </div>
+
+        <script type="text/javascript" charset="utf-8">
+            $(document).ready(function() {
+                $('#runs').DataTable({
+                    "order": [[ 1, "desc" ]],
+                     "columnDefs": [
+                        {
+                            "targets": [ 0 ],
+                            "orderable": true
+                        },
+                        {
+                            "targets": [ 1 ],
+                            "orderable": true
+                        },
+                    ]
+                });
+            });
+                </script>
+
+    </body>
+
+    </html>

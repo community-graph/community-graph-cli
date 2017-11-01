@@ -124,22 +124,22 @@ functions:
       name: CommunityGraphCLI-${self:custom.communityName}-TwitterImport
       handler: handler.twitter_import
       events:
-        - schedule: rate(1 hour)
+        - schedule: rate(1 minute)
   twitter-clean-links:
       name: CommunityGraphCLI-${self:custom.communityName}-TwitterCleanLinks
       handler: handler.twitter_clean_links
       events:
-        - schedule: rate(1 hour)
+        - schedule: rate(1 minute)
   twitter-hydrate-links:
       name: CommunityGraphCLI-${self:custom.communityName}-TwitterHydrateLinks
       handler: handler.twitter_hydrate_links
       events:
-        - schedule: rate(1 hour)
+        - schedule: rate(1 minute)
   twitter-unshorten-links:
       name: CommunityGraphCLI-${self:custom.communityName}-TwitterUnshortenLinks
       handler: handler.twitter_unshorten_links
       events:
-        - schedule: rate(1 hour)
+        - schedule: rate(1 minute)
   constraints:
       name: CommunityGraphCLI-${self:custom.communityName}-Constraints
       handler: handler.constraints
