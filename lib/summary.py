@@ -28,7 +28,7 @@ github_query = """\
 MATCH (n:Repository) WHERE EXISTS(n.created) AND n.pushed > timestamp() - 7 * 60 * 60 * 24 * 1000
 WITH n
 ORDER BY n.updated desc
-MATCH (n)<-[:CREATED]-(user)
+MATCH (n)<-[:CREATED]-(user:GitHubAccount)
 RETURN n.title, n.url, n.created, n.favorites, n.updated, user.name, n.created_at, n.updated_at, n.description, n.pushed, n.pushed_at
 ORDER BY n.pushed desc
 """
@@ -51,7 +51,7 @@ ORDER BY question.views DESC
 github_active_query = """
 MATCH (n:Repository) WHERE EXISTS(n.created) AND n.updated > timestamp() - 7* 60 * 60 * 24 * 1000
 WITH n
-MATCH (n)<-[:CREATED]-(user) WHERE NOT (user.name IN ["neo4j", "neo4j-contrib"])
+MATCH (n)<-[:CREATED]-(user:GitHubAccount) WHERE NOT (user.name IN ["neo4j", "neo4j-contrib"])
 WITH user, COUNT(*) AS count, COLLECT(n) as repos
 ORDER BY count desc
 RETURN user.name, user.avatarUrl, count, [repo in repos | repo { .title, .full_name }] AS repositories
