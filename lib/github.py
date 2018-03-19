@@ -29,63 +29,94 @@ MERGE (owner:GitHubAccount {id:r.owner.id})
 SET owner:User, owner:GitHub, owner.name = r.owner.login, owner.type=r.owner.type, owner.full_name = r.owner.name,
     owner.location = r.owner.location, owner.avatarUrl = r.owner.avatarUrl
 MERGE (owner)-[:CREATED]->(repo)
+WITH repo, r
+UNWIND r.releases AS release
+MERGE (releaseAsset:ReleaseAsset {name: repo.title + "-" + release.name })
+SET releaseAsset.jar = release.name
+WITH repo, releaseAsset, release
+CALL apoc.create.setProperty( releaseAsset, apoc.date.format(timestamp(), "ms",  "yyyy-MM-dd"), release.downloadCount) 
+YIELD node 
+MERGE (repo)-[:RELEASE_ASSET]->(node)
 """
 
 graphql_query = """\
 query Repositories($searchTerm: String!, $cursor: String) {
- rateLimit {
+  rateLimit {
     limit
     cost
     remaining
     resetAt
- }
- search(query:$searchTerm, type: REPOSITORY, first: 100, after: $cursor) {
-   repositoryCount
-   pageInfo {
-        hasNextPage
-        endCursor
-   }
-   nodes {
-     __typename
-     ... on Repository {
-       databaseId
-       isPrivate
-       name
-       url
-       pushedAt
-       createdAt
-       updatedAt
-       diskUsage
-       description
-       homepageUrl
-       issues { totalCount }
-       stargazers { totalCount }
-       watchers { totalCount }
-       forks { totalCount }
-
-       languages(first:1, orderBy: {field: SIZE, direction:DESC}) {
-         nodes { name }
-       }
-       owner {
-         __typename
-         login
-         avatarUrl
-         ... on User {
-           name
-           databaseId
-           location
-         }
-         ... on Organization {
+  }
+  search(query: $searchTerm, type: REPOSITORY, first: 100, after: $cursor) {
+    repositoryCount
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+    nodes {
+      __typename
+      ... on Repository {
+        releases(first: 50) {
+          nodes {
+            releaseAssets(first: 1) {
+              nodes {
+                name
+                downloadCount
+              }
+            }
+          }
+        }
+        databaseId
+        isPrivate
+        name
+        url
+        pushedAt
+        createdAt
+        updatedAt
+        diskUsage
+        description
+        homepageUrl
+        issues {
+          totalCount
+        }
+        stargazers {
+          totalCount
+        }
+        watchers {
+          totalCount
+        }
+        forks {
+          totalCount
+        }
+        languages(first: 1, orderBy: {field: SIZE, direction: DESC}) {
+          nodes {
+            name
+          }
+        }
+        owner {
+          __typename
+          login
+          avatarUrl
+          ... on User {
             name
             databaseId
-         }
-       }
-        defaultBranchRef { name }
-     }
-   }
- }
+            location
+          }
+          ... on Organization {
+            name
+            databaseId
+          }
+        }
+        defaultBranchRef {
+          name
+        }
+      }
+    }
+  }
 }
+
 """
+
 
 class GitHubImporter:
     def __init__(self, neo4j_url, neo4j_user, neo4j_pass, github_token):
@@ -113,9 +144,9 @@ class GitHubImporter:
 
                     bearer_token = "bearer {token}".format(token=self.github_token)
                     response = requests.post(apiUrl,
-                                            data=json.dumps(data),
-                                            headers={"accept": "application/json",
-                                                    "Authorization": bearer_token})
+                                             data=json.dumps(data),
+                                             headers={"accept": "application/json",
+                                                      "Authorization": bearer_token})
 
                     if response.status_code != 200:
                         print("Request failed with status code {code}".format(code=response.status_code))
@@ -135,6 +166,15 @@ class GitHubImporter:
                         languages = [n["name"] for n in node["languages"]["nodes"]]
                         default_branch_ref = node.get("defaultBranchRef") if node.get("defaultBranchRef") else {}
                         full_name = "{login}/{name}".format(name=node["name"], login=node["owner"]["login"])
+
+                        releases = []
+                        for release in node["releases"]["nodes"]:
+                            release_assets = release["releaseAssets"]["nodes"]
+                            if len(release_assets) > 0:
+                                releases.append({
+                                    "name": release_assets[0]["name"],
+                                    "downloadCount": release_assets[0]["downloadCount"]
+                                })
 
                         if not node["isPrivate"]:
                             params = {
@@ -162,7 +202,8 @@ class GitHubImporter:
                                 "open_issues": node["issues"]["totalCount"],
                                 "description": node["description"],
                                 "html_url": node["url"],
-                                "language": languages[0] if len(languages) > 0 else ""
+                                "language": languages[0] if len(languages) > 0 else "",
+                                "releases": releases
                             }
 
                             the_json.append(params)
