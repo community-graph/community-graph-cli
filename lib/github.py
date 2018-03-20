@@ -23,7 +23,8 @@ SET repo.favorites = r.stargazers_count,
     repo.size = r.size,
     repo.watchers = r.watchers, repo.language = r.language, repo.forks = r.forks_count,
     repo.open_issues = r.open_issues, repo.branch = r.default_branch, repo.description = r.description,
-    repo.isPrivate = r.isPrivate
+    repo.isPrivate = r.isPrivate,
+    repo.globalId = r.globalId
 
 MERGE (owner:GitHubAccount {id:r.owner.id})
 SET owner:User, owner:GitHub, owner.name = r.owner.login, owner.type=r.owner.type, owner.full_name = r.owner.name,
@@ -39,7 +40,7 @@ YIELD node
 MERGE (repo)-[:RELEASE_ASSET]->(node)
 """
 
-graphql_query = """\
+repositories_graphql_query = """\
 query Repositories($searchTerm: String!, $cursor: String) {
   rateLimit {
     limit
@@ -66,6 +67,7 @@ query Repositories($searchTerm: String!, $cursor: String) {
             }
           }
         }
+        id
         databaseId
         isPrivate
         name
@@ -118,12 +120,107 @@ query Repositories($searchTerm: String!, $cursor: String) {
 """
 
 
+release_assets_query = """\
+MATCH (r:Repository)
+WHERE (r)-[:RELEASE_ASSET]->() 
+RETURN r.globalId AS id
+"""
+
+release_assets_graphql_query = """\
+query Repositories($ids: [ID!]!) {
+  nodes(ids: $ids) {
+    ... on Repository {
+      name
+      databaseId
+      releases(first: 50) {
+        nodes {
+          releaseAssets(first: 1) {
+            nodes {
+              name
+              downloadCount
+            }
+          }
+        }
+      }
+    }
+  }
+}
+"""
+
+update_release_assets_query = """
+WITH {json} as data
+UNWIND data as r
+MATCH (repo:Repository:GitHub {id:r.databaseId})
+WITH repo, r
+UNWIND r.releases AS release
+MERGE (releaseAsset:ReleaseAsset {name: repo.title + "-" + release.name })
+SET releaseAsset.jar = release.name
+WITH repo, releaseAsset, release
+CALL apoc.create.setProperty( releaseAsset, apoc.date.format(timestamp(), "ms",  "yyyy-MM-dd"), release.downloadCount) 
+YIELD node 
+MERGE (repo)-[:RELEASE_ASSET]->(node)
+"""
+
+
 class GitHubImporter:
     def __init__(self, neo4j_url, neo4j_user, neo4j_pass, github_token):
         self.neo4j_url = neo4j_url
         self.neo4j_user = neo4j_user
         self.neo4j_pass = neo4j_pass
         self.github_token = github_token
+
+    def update_release_assets(self):
+        with GraphDatabase.driver(self.neo4j_url, auth=basic_auth(self.neo4j_user, self.neo4j_pass)) as driver:
+            with driver.session() as session:
+                result = session.run(release_assets_query)
+                ids = [row["id"] for row in result]
+                print("Updating release assets: {0}".format(ids))
+
+                api_url = "https://api.github.com/graphql"
+
+                data = {
+                    "query": release_assets_graphql_query,
+                    "variables": {"ids": ids}
+                }
+
+                bearer_token = "bearer {token}".format(token=self.github_token)
+                response = requests.post(api_url,
+                                         data=json.dumps(data),
+                                         headers={"accept": "application/json",
+                                                  "Authorization": bearer_token})
+
+                if response.status_code != 200:
+                    print("Request failed with status code {code}".format(code=response.status_code))
+                    print(response.text)
+                    return
+
+                r = response.json()
+                if not r["data"]:
+                    print("Response doesn't contain a 'data' section so we can't continue")
+                    print(response.text)
+                    return
+
+                the_json = []
+                for repository in r["data"]["nodes"]:
+                    entry = {
+                        "databaseId": repository["databaseId"],
+                        "name": repository["name"]
+                    }
+
+                    releases = []
+                    for release in repository["releases"]["nodes"]:
+                        release_assets = release["releaseAssets"]["nodes"]
+                        if len(release_assets) > 0:
+                            releases.append({
+                                "name": release_assets[0]["name"],
+                                "downloadCount": release_assets[0]["downloadCount"]
+                            })
+
+                    entry["releases"] = releases
+                    the_json.append(entry)
+
+                result = session.run(update_release_assets_query, {"json": the_json})
+                print(result.consume().counters)
 
     def process_tag(self, tags, start_date, end_date):
         with GraphDatabase.driver(self.neo4j_url, auth=basic_auth(self.neo4j_user, self.neo4j_pass)) as driver:
@@ -135,15 +232,15 @@ class GitHubImporter:
                 print("Search term: {0}".format(search))
                 has_more = True
                 while has_more:
-                    apiUrl = "https://api.github.com/graphql"
+                    api_url = "https://api.github.com/graphql"
 
                     data = {
-                        "query": graphql_query,
+                        "query": repositories_graphql_query,
                         "variables": {"searchTerm": search, "cursor": cursor}
                     }
 
                     bearer_token = "bearer {token}".format(token=self.github_token)
-                    response = requests.post(apiUrl,
+                    response = requests.post(api_url,
                                              data=json.dumps(data),
                                              headers={"accept": "application/json",
                                                       "Authorization": bearer_token})
@@ -179,6 +276,7 @@ class GitHubImporter:
                         if not node["isPrivate"]:
                             params = {
                                 "id": node["databaseId"],
+                                "globalId": node["id"],
                                 "isPrivate": node["isPrivate"],
                                 "name": node["name"],
                                 "full_name": full_name,

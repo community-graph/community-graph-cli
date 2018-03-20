@@ -155,6 +155,7 @@ def github_import(event, _):
     github_token = decrypt_value(credentials["githubToken"])
 
     importer = github.GitHubImporter(neo4j_url, neo4j_user, neo4j_password, github_token)
+    importer.update_release_assets()
 
     for record in event["Records"]:
         message = json.loads(record["Sns"]["Message"])
