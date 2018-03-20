@@ -137,9 +137,11 @@ def github_publish_events_import(event, context):
         start_date = (datetime.datetime.now(timezone.utc) - datetime.timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%S+00:00")
         end_date = datetime.datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+00:00")
 
-        params = {"startDate": start_date, "endDate": end_date, "tags": tag}
+        # maybe I can add a field that indicates if it's an import or release asset downloadCount update
+        params = {"startDate": start_date, "endDate": end_date, "tags": tags}
 
-        sns.publish(TopicArn= topic_arn, Message= json.dumps(params))
+        sns.publish(TopicArn=topic_arn, Message=json.dumps(params))
+
 
 def github_import(event, _):
     print("Event:", event)

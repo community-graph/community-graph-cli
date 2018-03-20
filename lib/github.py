@@ -227,12 +227,13 @@ class GitHubImporter:
                         "cursor", cursor,
                         "repositoryCount", search_section["repositoryCount"])
 
+
 def import_github(neo4j_url, neo4j_user, neo4j_pass, tag, github_token):
     importer = GitHubImporter(neo4j_url, neo4j_user, neo4j_pass, github_token)
     for tags in chunker(tag, 5):
         start_date = (datetime.datetime.now() - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
         end_date = datetime.datetime.now().strftime("%Y-%m-%d")
-        importer.process_tag(tags, start_date, start_date)
+        importer.process_tag(tags, start_date, end_date)
 
 
 def chunker(seq, size):
