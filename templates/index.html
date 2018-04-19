@@ -90,7 +90,7 @@
 				    "order": [[ 1, "desc" ]],
 				     "columnDefs": [
                         {
-                            "targets": [ 2 ],
+                            "targets": [ 2,3 ],
                             "orderable": false
                         },
                     ]
@@ -267,6 +267,7 @@
                     <th>Question</th>
                     <th>Views</th>
                     <th>Tags</th>
+                    <th>Answered?</th>
                 </tr>
                 </thead>
 
@@ -282,6 +283,9 @@
                             {% endfor %}
                         </ul>
 
+                    </td>
+                    <td>
+                        {{ r['hasAnswer'] }}
                     </td>
                 </tr>
                 {% endfor %}

@@ -1,5 +1,6 @@
 from neo4j.v1 import GraphDatabase, basic_auth
 
+
 def configure_constraints(neo4j_url, neo4j_user, neo4j_pass):
     with GraphDatabase.driver(neo4j_url, auth=basic_auth(neo4j_user, neo4j_pass)) as driver:
         with driver.session() as session:

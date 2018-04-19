@@ -1,16 +1,13 @@
-import http.client
 import socket
-from urllib.parse import urlparse
-
-from neo4j.v1 import GraphDatabase, basic_auth
-import requests
-from bs4 import BeautifulSoup
-
 import time
 import urllib
 import urllib.parse
-
 from urllib.parse import urlencode, urlparse, urlunparse, parse_qs
+from urllib.parse import urlparse
+
+import requests
+from bs4 import BeautifulSoup
+from neo4j.v1 import GraphDatabase, basic_auth
 
 # from neo4j.util import Watcher
 # watcher = Watcher("neo4j.bolt")
@@ -18,9 +15,10 @@ from urllib.parse import urlencode, urlparse, urlunparse, parse_qs
 
 find_short_links_query = """\
 MATCH (link:Link) 
-WHERE exists(link.short) 
-RETURN id(link) as id, link.url as url LIMIT 
-{limit}
+WHERE exists(link.short) AND link.url contains "r.neo4j.com" 
+RETURN id(link) as id, link.url as url 
+ORDER BY id DESC
+LIMIT {limit}
 """
 
 unshorten_query = """\
@@ -35,7 +33,7 @@ REMOVE link.short
 def unshorten_links(neo4j_url, neo4j_user, neo4j_pass):
     with GraphDatabase.driver(neo4j_url, auth=basic_auth(neo4j_user, neo4j_pass)) as driver:
         with driver.session() as session:
-            result = session.run(find_short_links_query, {"limit": 1000})
+            result = session.run(find_short_links_query, {"limit": 100})
             update = []
             rows = 0
             for record in result:
@@ -43,8 +41,7 @@ def unshorten_links(neo4j_url, neo4j_user, neo4j_pass):
                     resolved = unshorten_url(record["url"])
                     print("original", record["url"], "resolved", resolved)
                     rows = rows + 1
-                    if resolved != record["url"]:
-                        update += [{"id": record["id"], "url": resolved}]
+                    update += [{"id": record["id"], "url": resolved}]
                 except AttributeError:
                     print("Failed to resolve {0}. Ignoring for now".format(record["url"]))
                 except socket.gaierror:
@@ -242,26 +239,15 @@ def hydrate_url(url):
 
 
 def unshorten_url(url):
-    if url is None or len(url) < 11:
-        return url
-    parsed = urlparse(url)
-    h = http.client.HTTPConnection(parsed.netloc)
-    h.request('HEAD', parsed.path)
-    response = h.getresponse()
-    if response.status // 100 == 3 and response.getheader('Location'):
-        loc = str(response.getheader('Location'))
-
-        if loc != url and len(loc) <= 22:
-            return unshorten_url(loc)
-        else:
-            return loc
-    else:
-        return url
+    session = requests.Session()  # so connections are recycled
+    resp = session.head(url, allow_redirects=True)
+    return resp.url
 
 not_cleaned_links_query = """\
 MATCH (l:Link) 
-WHERE NOT(EXISTS(l.short)) AND NOT(EXISTS(l.cleanUrl))
+WHERE not(exists(l.short)) AND not(exists(l.cleanUrl))
 RETURN l, ID(l) AS internalId
+ORDER BY internalId DESC
 """
 
 update_links_query = """\
@@ -280,9 +266,13 @@ def clean_links(neo4j_url, neo4j_user, neo4j_pass):
             for row in result:
                 uri = row["l"]["url"]
                 if uri:
+                    print("(Before) URL to clean:", uri)
                     uri = uri.encode('utf-8')
-                    print("URL to clean:", uri)
-                    updates.append({"id": row["internalId"], "clean": clean_uri(uri)})
+                    print("(After) URL to clean:", uri)
+                    try:
+                        updates.append({"id": row["internalId"], "clean": clean_uri(uri)})
+                    except UnicodeDecodeError:
+                        print("Unable to clean {0}".format(uri))
 
             print("Updates to apply", updates)
 

@@ -16,6 +16,7 @@ import os
 
 import boto3
 
+
 def read_config():
     config_file = os.getenv('CONFIG_FILE', 'communitygraph.json')
     print("Reading config from {config_file}".format(config_file=config_file))
@@ -24,6 +25,7 @@ def read_config():
 
 
 config = read_config()
+
 
 def constraints(event, _):
     print("Event:", event)
@@ -53,15 +55,18 @@ def generate_page_summary(event, _):
 
     summary.generate(url, user, password, title, short_name, logo_src)
 
+
 def as_timestamp(dt):
     return int(datetime.datetime.timestamp(dt))
+
 
 def so_publish_events_import(event, context):
     tag = config["tag"]
 
     context_parts = context.invoked_function_arn.split(':')
     topic_name = "StackOverflow-{0}".format(config["communityName"])
-    topic_arn = "arn:aws:sns:{region}:{account_id}:{topic}".format(region=context_parts[3], account_id=context_parts[4], topic=topic_name)
+    topic_arn = "arn:aws:sns:{region}:{account_id}:{topic}".format(region=context_parts[3], account_id=context_parts[4],
+                                                                   topic=topic_name)
 
     sns = boto3.client('sns')
 
@@ -69,7 +74,8 @@ def so_publish_events_import(event, context):
     end_date = datetime.datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+00:00")
 
     params = {"startDate": start_date, "endDate": end_date, "tags": tag}
-    sns.publish(TopicArn= topic_arn, Message= json.dumps(params))
+    sns.publish(TopicArn=topic_arn, Message=json.dumps(params))
+
 
 def so_import(event, _):
     print("Event:", event)
@@ -129,12 +135,14 @@ def github_publish_events_import(event, context):
 
     context_parts = context.invoked_function_arn.split(':')
     topic_name = "GitHub-{0}".format(config["communityName"])
-    topic_arn = "arn:aws:sns:{region}:{account_id}:{topic}".format(region=context_parts[3], account_id=context_parts[4], topic=topic_name)
+    topic_arn = "arn:aws:sns:{region}:{account_id}:{topic}".format(region=context_parts[3], account_id=context_parts[4],
+                                                                   topic=topic_name)
 
     sns = boto3.client('sns')
 
     for tags in github.chunker(tag, 5):
-        start_date = (datetime.datetime.now(timezone.utc) - datetime.timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+        start_date = (datetime.datetime.now(timezone.utc) - datetime.timedelta(hours=1)).strftime(
+            "%Y-%m-%dT%H:%M:%S+00:00")
         end_date = datetime.datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+00:00")
 
         # maybe I can add a field that indicates if it's an import or release asset downloadCount update

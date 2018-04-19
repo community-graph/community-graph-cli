@@ -42,9 +42,9 @@ ORDER BY event.time
 
 so_query = """\
 WITH ((timestamp() / 1000) - (7 * 24 * 60 * 60)) AS oneWeekAgo
-match (tag)<-[:TAGGED]-(question:Question:Content:StackOverflow)<--(:Answer)<-[:POSTED]-(user)
+match (tag)<-[:TAGGED]-(question:Question:Content:StackOverflow)
 WHERE question.created > oneWeekAgo
-RETURN question, COLLECT(DISTINCT tag.name) AS tags
+RETURN question, COLLECT(DISTINCT tag.name) AS tags, exists((question)<--(:Answer)<-[:POSTED]-()) AS hasAnswer
 ORDER BY question.views DESC
 """
 
