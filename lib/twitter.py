@@ -8,24 +8,134 @@ from urllib.parse import urlparse
 import requests
 from bs4 import BeautifulSoup
 from neo4j.v1 import GraphDatabase, basic_auth
+from user_agent import generate_user_agent, generate_navigator
 
 # from neo4j.util import Watcher
 # watcher = Watcher("neo4j.bolt")
 # watcher.watch()
 
+import_tweet_query = """\
+WITH {tweet} AS t
+
+WITH t,
+     t.entities AS e,
+     t.user AS u,
+     t.retweeted_status AS retweet
+
+MERGE (tweet:Tweet:Twitter {id:t.id})
+SET tweet:Content, tweet.text = t.text,
+    tweet.created_at = t.created_at,
+    tweet.created = apoc.date.parse(t.created_at,'s','E MMM dd HH:mm:ss Z yyyy'),
+    tweet.favorites = t.favorite_count
+
+MERGE (user:User {screen_name:u.screen_name})
+SET user.name = u.name, user.id = u.id,
+    user.location = u.location,
+    user.followers = u.followers_count,
+    user.following = u.friends_count,
+    user.statuses = u.statuses_count,
+    user.profile_image_url = u.profile_image_url,
+    user:Twitter
+
+MERGE (user)-[:POSTED]->(tweet)
+
+FOREACH (h IN e.hashtags |
+  MERGE (tag:Tag {name:LOWER(h.text)}) SET tag:Twitter
+  MERGE (tag)<-[:TAGGED]-(tweet)
+)
+
+FOREACH (u IN e.urls |
+  MERGE (url:Link {url:u.expanded_url})
+  SET url:Twitter
+  MERGE (tweet)-[:LINKED]->(url)
+)
+
+FOREACH (m IN e.user_mentions |
+  MERGE (mentioned:User {screen_name:m.screen_name})
+  ON CREATE SET mentioned.name = m.name, mentioned.id = m.id
+  SET mentioned:Twitter
+  MERGE (tweet)-[:MENTIONED]->(mentioned)
+)
+
+FOREACH (r IN [r IN [t.in_reply_to_status_id] WHERE r IS NOT NULL] |
+  MERGE (reply_tweet:Tweet:Twitter {id:r})
+  MERGE (tweet)-[:REPLIED_TO]->(reply_tweet)
+  SET tweet:Reply
+)
+
+FOREACH (retweet_id IN [x IN [retweet.id] WHERE x IS NOT NULL] |
+    MERGE (retweet_tweet:Tweet:Twitter {id:retweet_id})
+    MERGE (tweet)-[:RETWEETED]->(retweet_tweet)
+    SET tweet:Retweet
+)
+"""
+
+class TwitterImporter:
+    def __init__(self, neo4j_url, neo4j_user, neo4j_pass):
+        self.neo4j_url = neo4j_url
+        self.neo4j_user = neo4j_user
+        self.neo4j_pass = neo4j_pass
+
+    def import_tweet(self, tweet):
+        print(f"importing... {tweet}")
+
+        with GraphDatabase.driver(self.neo4j_url, auth=basic_auth(self.neo4j_user, self.neo4j_pass)) as driver:
+            with driver.session() as session:
+                # result = session.run(import_tweet_query, {"tweet": tweet})
+                # print(result.consume().counters)
+                print("importing that tweet")
+
+    def unshorten(self, url):
+        session = requests.Session()  # so connections are recycled
+        resp = session.head(url, allow_redirects=True)
+        return resp.url
+
+    def clean_uri(self, url):
+        url = url.encode('utf-8')
+        u = urlparse(url)
+        query = parse_qs(u.query.decode("utf-8"))
+
+        for param in ["utm_content", "utm_source", "utm_medium", "utm_campaign", "utm_term"]:
+            query.pop(param, None)
+
+        u = u._replace(query=bytes(urlencode(query, True), "utf-8"))
+
+        return urlunparse(u).decode("utf-8")
+
+    def hydrate_url(self, url):
+        user_agent = {'User-agent': generate_user_agent()}
+        potential_title = []
+        try:
+            if url:
+                r = requests.get(url, headers=user_agent, timeout=5.0)
+                response = r.text
+                page = BeautifulSoup(response, "html.parser")
+                potential_title = page.find_all("title")
+        except requests.exceptions.ConnectionError:
+            print("Failed to connect: ", url)
+        except requests.exceptions.ReadTimeout:
+            print("Read timed out: ", url)
+
+        if len(potential_title) == 0:
+            print("Skipping: ", url)
+            return "N/A"
+        else:
+            return potential_title[0].text
+
+
 find_short_links_query = """\
-MATCH (link:Link) 
-WHERE exists(link.short) AND link.url contains "r.neo4j.com" 
-RETURN id(link) as id, link.url as url 
+MATCH (link:Link)
+WHERE exists(link.short) OR link.url contains "r.neo4j.com"
+RETURN id(link) as id, link.url as url
 ORDER BY id DESC
 LIMIT {limit}
 """
 
 unshorten_query = """\
-UNWIND {data} AS row 
-MATCH (link) 
-WHERE id(link) = row.id 
-SET link.url = row.url 
+UNWIND {data} AS row
+MATCH (link)
+WHERE id(link) = row.id
+SET link.url = row.url
 REMOVE link.short
 """
 
@@ -113,6 +223,64 @@ FOREACH (retweet_id IN [x IN [retweet.id] WHERE x IS NOT NULL] |
 )
 """
 
+def find_last_tweet(neo4j_url, neo4j_user, neo4j_pass):
+    with GraphDatabase.driver(neo4j_url, auth=basic_auth(neo4j_user, neo4j_pass)) as driver:
+        with driver.session() as session:
+            result = session.run("MATCH (t:Tweet:Content) RETURN max(t.id) as sinceId")
+            for record in result:
+                if record["sinceId"] is not None:
+                    return record["sinceId"]
+
+def find_tweets_since(since_id, search, bearer_token):
+    q = urllib.parse.quote(search, safe='')
+    max_pages = 100
+
+    count = 100
+    result_type = "recent"
+    lang = "en"
+
+    max_id = -1
+
+    has_more = True
+    while has_more:
+        api_url = f"https://api.twitter.com/1.1/search/tweets.json?q={q}&count={count}&result_type={result_type}&lang={lang}"
+        if since_id != -1:
+            api_url += "&since_id=%s" % (since_id)
+        if max_id != -1:
+            api_url += "&max_id=%s" % (max_id)
+
+        print(f"Processing since [{since_id}] max [{max_id}]")
+
+        response = requests.get(api_url,
+            headers = {"accept": "application/json", "Authorization": "Bearer " + bearer_token})
+        if response.status_code != 200:
+            raise (Exception(response.status_code, response.text))
+
+        json = response.json()
+
+        tweets = json.get("statuses", [])
+
+        meta = json["search_metadata"]
+
+        if meta.get('next_results', None) is not None:
+            max_id = meta["next_results"].split("=")[1][0:-2]
+
+        has_more = len(tweets) == count
+        print(f"More tweets to fetch? {has_more}")
+
+        if len(tweets) > 0:
+            for tweet in tweets:
+                yield tweet
+
+        time.sleep(1)
+
+        if json.get('backoff', None) is not None:
+            print("backoff", json['backoff'])
+            time.sleep(json['backoff'] + 5)
+
+
+
+
 
 def import_links(neo4j_url, neo4j_user, neo4j_pass, bearer_token, search):
     if len(bearer_token) == 0:
@@ -177,10 +345,10 @@ def import_links(neo4j_url, neo4j_user, neo4j_pass, bearer_token, search):
                     time.sleep(json['backoff'] + 5)
 
 unhydrated_query = """\
-MATCH (link:Link) 
-WHERE not exists(link.title) 
-RETURN id(link) as id, link.url as url 
-ORDER BY ID(link) DESC 
+MATCH (link:Link)
+WHERE not exists(link.title)
+RETURN id(link) as id, link.url as url
+ORDER BY ID(link) DESC
 LIMIT {limit}
 """
 
@@ -244,7 +412,7 @@ def unshorten_url(url):
     return resp.url
 
 not_cleaned_links_query = """\
-MATCH (l:Link) 
+MATCH (l:Link)
 WHERE not(exists(l.short)) AND not(exists(l.cleanUrl))
 RETURN l, ID(l) AS internalId
 ORDER BY internalId DESC

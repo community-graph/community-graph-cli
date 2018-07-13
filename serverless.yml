@@ -25,6 +25,15 @@ custom:
         - Ref: AWS::Region
         - Ref: AWS::AccountId
         - StackOverflow-${file(${env:CONFIG_FILE, 'communitygraph.json'}):communityName}
+  TwitterTopic:
+    Fn::Join:
+      - ":"
+      - - arn
+        - aws
+        - sns
+        - Ref: AWS::Region
+        - Ref: AWS::AccountId
+        - Twitter-${file(${env:CONFIG_FILE, 'communitygraph.json'}):communityName}
 
 provider:
   name: aws
@@ -120,6 +129,21 @@ functions:
       handler: handler.github_publish_events_import
       events:
         - schedule: rate(1 hour)
+
+  twitter-publish-events-import:
+      name: CommunityGraphCLI-${self:custom.communityName}-TwitterPublishEventsImport
+      handler: handler.twitter_publish_events_import
+      events:
+        - schedule: rate(1 minute)
+  twitter-topic-import:
+      name: CommunityGraphCLI-${self:custom.communityName}-Twitter-Topic-Import
+      handler: handler.twitter_topic_import
+      events:
+        - sns:
+            topicName: Twitter-${file(${env:CONFIG_FILE, 'communitygraph.json'}):communityName}
+            displayName: Topic to process Twitter events
+
+
   twitter-import:
       name: CommunityGraphCLI-${self:custom.communityName}-TwitterImport
       handler: handler.twitter_import

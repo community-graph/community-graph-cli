@@ -174,6 +174,64 @@ def github_import(event, _):
 
         importer.process_tag(tags, start_date, end_date)
 
+def twitter_publish_events_import(event, context):
+    print("Event:", event)
+
+    credentials = config["credentials"]
+    context_parts = context.invoked_function_arn.split(':')
+    topic_name = "Twitter-{0}".format(config["communityName"])
+    topic_arn = "arn:aws:sns:{region}:{account_id}:{topic}".format(region=context_parts[3], account_id=context_parts[4],
+                                                                   topic=topic_name)
+
+    neo4j_url = "bolt://{url}".format(url=config.get("serverUrl", "localhost"))
+    neo4j_user = credentials["readonly"].get('user', "neo4j")
+    neo4j_password = decrypt_value(credentials["readonly"]['password'])
+
+    sns = boto3.client('sns')
+
+    twitter_bearer = decrypt_value(credentials["twitterBearer"])
+    search = config["twitterSearch"]
+
+    since_id = twitter.find_last_tweet(neo4j_url=neo4j_url, neo4j_user=neo4j_user, neo4j_pass=neo4j_password)
+    print(f"Most recent tweet: {since_id}")
+
+    tweets = twitter.find_tweets_since(since_id=since_id, search=search, bearer_token=twitter_bearer)
+
+    for tweet in tweets:
+        sns.publish(TopicArn=topic_arn, Message=json.dumps(tweet))
+        # print(tweet["id"])
+
+def twitter_topic_import(event, _):
+    print("Event:", event)
+
+    credentials = config["credentials"]
+    write_credentials = credentials["write"]
+
+    neo4j_url = "bolt://{url}".format(url=config.get("serverUrl", "localhost"))
+    neo4j_user = write_credentials.get('user', "neo4j")
+    neo4j_password = decrypt_value(write_credentials['password'])
+
+    importer = twitter.TwitterImporter(neo4j_url, neo4j_user, neo4j_password)
+
+    for record in event["Records"]:
+        tweet = json.loads(record["Sns"]["Message"])
+        print("Processing tweet {tweet['id']}")
+
+        for url in tweet["entities"]["urls"]:
+            initial_uri = url["expanded_url"]
+            expanded_uri = importer.unshorten(initial_uri)
+            cleaned_uri = importer.clean_uri(expanded_uri)
+
+            print(f"Initial: {initial_uri}, Expanded: {expanded_uri}, Cleaned: {cleaned_uri}")
+
+            url["expanded_url"] = cleaned_uri
+
+            title = importer.hydrate_url(expanded_uri)
+            url["title"] = title
+
+        importer.import_tweet(tweet)
+
+
 
 def twitter_import(event, _):
     print("Event:", event)
