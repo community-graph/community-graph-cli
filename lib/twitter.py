@@ -46,7 +46,7 @@ FOREACH (h IN e.hashtags |
 
 FOREACH (u IN e.urls |
   MERGE (url:Link {url:u.expanded_url})
-  SET url:Twitter, url.title = u.title
+  SET url:Twitter, url.title = u.title, url.l.cleanUrl = u.expanded_url
   MERGE (tweet)-[:LINKED]->(url)
 )
 

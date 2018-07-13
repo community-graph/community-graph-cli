@@ -215,7 +215,7 @@ def twitter_topic_import(event, _):
 
     for record in event["Records"]:
         tweet = json.loads(record["Sns"]["Message"])
-        print("Processing tweet {tweet['id']}")
+        print(f"Processing tweet {tweet['id']}")
 
         for url in tweet["entities"]["urls"]:
             initial_uri = url["expanded_url"]
