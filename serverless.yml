@@ -65,6 +65,7 @@ provider:
       Resource:
         - ${self:custom.GitHubTopic}
         - ${self:custom.StackOverflowTopic}
+        - ${self:custom.TwitterTopic}
 resources:
   Resources:
     S3BucketPermissions:
