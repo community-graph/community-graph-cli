@@ -46,7 +46,7 @@ FOREACH (h IN e.hashtags |
 
 FOREACH (u IN e.urls |
   MERGE (url:Link {url:u.expanded_url})
-  SET url:Twitter
+  SET url:Twitter, url.title = u.title
   MERGE (tweet)-[:LINKED]->(url)
 )
 
@@ -81,8 +81,8 @@ class TwitterImporter:
 
         with GraphDatabase.driver(self.neo4j_url, auth=basic_auth(self.neo4j_user, self.neo4j_pass)) as driver:
             with driver.session() as session:
-                # result = session.run(import_tweet_query, {"tweet": tweet})
-                # print(result.consume().counters)
+                result = session.run(import_tweet_query, {"tweet": tweet})
+                print(result.consume().counters)
                 print("importing that tweet")
 
     def unshorten(self, url):
