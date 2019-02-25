@@ -202,22 +202,23 @@ class GitHubImporter:
 
                 the_json = []
                 for repository in r["data"]["nodes"]:
-                    entry = {
-                        "databaseId": repository["databaseId"],
-                        "name": repository["name"]
-                    }
+                    if repository:
+                        entry = {
+                            "databaseId": repository["databaseId"],
+                            "name": repository["name"]
+                        }
 
-                    releases = []
-                    for release in repository["releases"]["nodes"]:
-                        release_assets = release["releaseAssets"]["nodes"]
-                        if len(release_assets) > 0:
-                            releases.append({
-                                "name": release_assets[0]["name"],
-                                "downloadCount": release_assets[0]["downloadCount"]
-                            })
+                        releases = []
+                        for release in repository["releases"]["nodes"]:
+                            release_assets = release["releaseAssets"]["nodes"]
+                            if len(release_assets) > 0:
+                                releases.append({
+                                    "name": release_assets[0]["name"],
+                                    "downloadCount": release_assets[0]["downloadCount"]
+                                })
 
-                    entry["releases"] = releases
-                    the_json.append(entry)
+                        entry["releases"] = releases
+                        the_json.append(entry)
 
                 result = session.run(update_release_assets_query, {"json": the_json})
                 print(result.consume().counters)

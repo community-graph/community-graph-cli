@@ -1,8 +1,10 @@
 const fs = require("fs");
 
+const { execFile } = require('child_process');
+
 function checkPythonVersion(data) {
     return new Promise((resolve, reject) => {
-        exec('python --version', function (err, stdout, stderr) {
+        execFile('python', ['--version'], function (err, stdout, stderr) {
             let systemPython = (stdout.toString() || stderr.toString()).replace("\n", "");
             if (systemPython.includes("3.6")) {
                 resolve("Python 3.6 installed");
