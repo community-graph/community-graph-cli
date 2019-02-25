@@ -33,7 +33,7 @@ def constraints(event, _):
     credentials = config["credentials"]
     write_credentials = credentials["write"]
 
-    neo4j_url = "bolt://{url}".format(url=config.get("serverUrl", "localhost"))
+    neo4j_url = "bolt+routing://{url}".format(url=config.get("serverUrl", "localhost"))
     neo4j_user = write_credentials.get('user', "neo4j")
     neo4j_password = decrypt_value(write_credentials['password'])
 
@@ -80,7 +80,7 @@ def so_publish_events_import(event, context):
 def so_import(event, _):
     print("Event:", event)
 
-    neo4j_url = "bolt://{url}".format(url=config.get("serverUrl", "localhost"))
+    neo4j_url = "bolt+routing://{url}".format(url=config.get("serverUrl", "localhost"))
 
     credentials = config["credentials"]
     write_credentials = credentials["write"]
@@ -106,7 +106,7 @@ def meetup_events_import(event, _):
     credentials = config["credentials"]
     write_credentials = credentials["write"]
 
-    neo4j_url = "bolt://{url}".format(url=config.get("serverUrl", "localhost"))
+    neo4j_url = "bolt+routing://{url}".format(url=config.get("serverUrl", "localhost"))
     neo4j_user = write_credentials.get('user', "neo4j")
     neo4j_password = decrypt_value(write_credentials['password'])
     meetup_key = decrypt_value(credentials["meetupApiKey"])
@@ -120,7 +120,7 @@ def meetup_groups_import(event, _):
     credentials = config["credentials"]
     write_credentials = credentials["write"]
 
-    neo4j_url = "bolt://{url}".format(url=config.get("serverUrl", "localhost"))
+    neo4j_url = "bolt+routing://{url}".format(url=config.get("serverUrl", "localhost"))
     neo4j_user = write_credentials.get('user', "neo4j")
     neo4j_password = decrypt_value(write_credentials['password'])
     meetup_key = decrypt_value(credentials["meetupApiKey"])
@@ -157,7 +157,7 @@ def github_import(event, _):
     credentials = config["credentials"]
     write_credentials = credentials["write"]
 
-    neo4j_url = "bolt://{url}".format(url=config.get("serverUrl", "localhost"))
+    neo4j_url = "bolt+routing://{url}".format(url=config.get("serverUrl", "localhost"))
     neo4j_user = write_credentials.get('user', "neo4j")
     neo4j_password = decrypt_value(write_credentials['password'])
     github_token = decrypt_value(credentials["githubToken"])
@@ -183,7 +183,7 @@ def twitter_publish_events_import(event, context):
     topic_arn = "arn:aws:sns:{region}:{account_id}:{topic}".format(region=context_parts[3], account_id=context_parts[4],
                                                                    topic=topic_name)
 
-    neo4j_url = "bolt://{url}".format(url=config.get("serverUrl", "localhost"))
+    neo4j_url = "bolt+routing://{url}".format(url=config.get("serverUrl", "localhost"))
     neo4j_user = credentials["readonly"].get('user', "neo4j")
     neo4j_password = decrypt_value(credentials["readonly"]['password'])
 
@@ -207,7 +207,7 @@ def twitter_topic_import(event, _):
     credentials = config["credentials"]
     write_credentials = credentials["write"]
 
-    neo4j_url = "bolt://{url}".format(url=config.get("serverUrl", "localhost"))
+    neo4j_url = "bolt+routing://{url}".format(url=config.get("serverUrl", "localhost"))
     neo4j_user = write_credentials.get('user', "neo4j")
     neo4j_password = decrypt_value(write_credentials['password'])
 
@@ -239,7 +239,7 @@ def twitter_import(event, _):
     credentials = config["credentials"]
     write_credentials = credentials["write"]
 
-    neo4j_url = "bolt://{url}".format(url=config.get("serverUrl", "localhost"))
+    neo4j_url = "bolt+routing://{url}".format(url=config.get("serverUrl", "localhost"))
     neo4j_user = write_credentials.get('user', "neo4j")
     neo4j_password = decrypt_value(write_credentials['password'])
 
@@ -256,7 +256,7 @@ def twitter_clean_links(event, _):
     credentials = config["credentials"]
     write_credentials = credentials["write"]
 
-    neo4j_url = "bolt://{url}".format(url=config.get("serverUrl", "localhost"))
+    neo4j_url = "bolt+routing://{url}".format(url=config.get("serverUrl", "localhost"))
     neo4j_user = write_credentials.get('user', "neo4j")
     neo4j_password = decrypt_value(write_credentials['password'])
 
@@ -269,7 +269,7 @@ def twitter_hydrate_links(event, _):
     credentials = config["credentials"]
     write_credentials = credentials["write"]
 
-    neo4j_url = "bolt://{url}".format(url=config.get("serverUrl", "localhost"))
+    neo4j_url = "bolt+routing://{url}".format(url=config.get("serverUrl", "localhost"))
     neo4j_user = write_credentials.get('user', "neo4j")
     neo4j_password = decrypt_value(write_credentials['password'])
 
@@ -282,7 +282,7 @@ def twitter_unshorten_links(event, _):
     credentials = config["credentials"]
     write_credentials = credentials["write"]
 
-    neo4j_url = "bolt://{url}".format(url=config.get("serverUrl", "localhost"))
+    neo4j_url = "bolt+routing://{url}".format(url=config.get("serverUrl", "localhost"))
     neo4j_user = write_credentials.get('user', "neo4j")
     neo4j_password = decrypt_value(write_credentials['password'])
 
