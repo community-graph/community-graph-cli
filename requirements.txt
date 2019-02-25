@@ -34,7 +34,6 @@ neotime==1.7.4
 numpy==1.13.3
 packaging==16.8
 persistent==4.2.4.2
-pkg-resources==0.0.0
 pyhacrf-datamade==0.2.1
 PyLBFGS==0.2.0.5
 pyparsing==2.2.0
