@@ -67,7 +67,7 @@ Check back soon and hopefully it'll be simpler.
 == Things to do
 
 * [*] Add lambdas to import data from StackOverflow
-* [*] Add lambdas to import data from Meetup
+* [ ] Add lambdas to import data from Meetup
 * [*] Add lambdas to import data from Twitter
 * [*] Add lambdas to import data from GitHub
 * [*] Interactive `community-graph` so that users can set parameters

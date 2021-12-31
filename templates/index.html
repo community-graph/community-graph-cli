@@ -148,7 +148,7 @@
     <ul class="nav nav-tabs" role="tablist">
         <li role="presentation" class="active"><a href="#twitter" aria-controls="twitter" role="tab" data-toggle="tab">Twitter</a></li>
         <li role="presentation"><a href="#github" aria-controls="github" role="tab" data-toggle="tab">GitHub</a></li>
-        <li role="presentation"><a href="#meetup" aria-controls="meetup" role="tab" data-toggle="tab">Meetup</a></li>
+        <li role="presentation"><a href="#meetup" aria-controls="meetup" role="tab" data-toggle="tab">Meetup</a></li> 
         <li role="presentation"><a href="#so" aria-controls="so" role="tab" data-toggle="tab">StackOverflow</a></li>
         <li role="presentation"><a href="#twitter-active-members" aria-controls="twitter-active-members" role="tab" data-toggle="tab">Twitter Active</a></li>
         <li role="presentation"><a href="#github-active-members" aria-controls="github-active-members" role="tab" data-toggle="tab">GitHub Active</a></li>
@@ -224,7 +224,7 @@
                     <td><a href="http://github.com/{{r['user.name']}}" target="_blank">{{r['user.name']}}</a></td>
                     <td>{{ r['n.favorites']}}</td>
                     <td>{{ r['n.pushed'] | humanise }}</td>
-                    <td>{{ r['n.created'] | humanise }}</td>
+                    
 
                     <td>{{ r['n.pushed'] }}</td>
                     <td>{{ r['n.created'] }}</td>
@@ -234,7 +234,7 @@
             </table>
         </div>
 
-        <div role="tabpanel" class="tab-pane" id="meetup">
+    <div role="tabpanel" class="tab-pane" id="meetup">
             <table id="meetup-table" class="table table-striped" width="100%">
                 <thead>
                 <tr>

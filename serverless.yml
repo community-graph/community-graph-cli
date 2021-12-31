@@ -1,72 +1,17 @@
-service: community-graph-cli
+service: community-graph
 
-frameworkVersion: ">=1.2.0 <2.0.0"
-
+useDotenv: true
 custom:
   stage: "${opt:stage, self:provider.stage}"
-  kmsKeyArn: ${file(${env:CONFIG_FILE, 'communitygraph.json'}):credentials.keyArn}
-  communityName: ${file(${env:CONFIG_FILE, 'communitygraph.json'}):communityName}
-  s3Bucket: ${file(${env:CONFIG_FILE, 'communitygraph.json'}):s3Bucket}
-  GitHubTopic:
-    Fn::Join:
-      - ":"
-      - - arn
-        - aws
-        - sns
-        - Ref: AWS::Region
-        - Ref: AWS::AccountId
-        - GitHub-${file(${env:CONFIG_FILE, 'communitygraph.json'}):communityName}
-  StackOverflowTopic:
-    Fn::Join:
-      - ":"
-      - - arn
-        - aws
-        - sns
-        - Ref: AWS::Region
-        - Ref: AWS::AccountId
-        - StackOverflow-${file(${env:CONFIG_FILE, 'communitygraph.json'}):communityName}
-  TwitterTopic:
-    Fn::Join:
-      - ":"
-      - - arn
-        - aws
-        - sns
-        - Ref: AWS::Region
-        - Ref: AWS::AccountId
-        - Twitter-${file(${env:CONFIG_FILE, 'communitygraph.json'}):communityName}
+  communityName: ${env:COMMUNITY_NAME}
+  s3Bucket: ${env:S3_BUCKET}
 
 provider:
   name: aws
-  stage: ${file(${env:CONFIG_FILE, 'communitygraph.json'}):communityName}
-  runtime: python3.6
-  environment:
-    CONFIG_FILE: ${env:CONFIG_FILE, 'communitygraph.json'}
+  stage: ${opt:stage, self:provider.stage}
+  runtime: python3.7
   timeout: 180
-  iamRoleStatements:
-    - Effect: Allow
-      Action:
-        - KMS:Decrypt
-      Resource:
-        - ${self:custom.kmsKeyArn}
-    - Effect: Allow
-      Action:
-        - s3:GetObject
-        - s3:ListBucket
-      Resource:
-        - arn:aws:s3:::${self:custom.s3Bucket}/*
-    - Effect: Allow
-      Action:
-        - s3:PutObject
-      Resource:
-        - arn:aws:s3:::${self:custom.s3Bucket}/*
-    - Effect: 'Allow'
-      Action:
-        - "sns:Publish"
-      Resource:
-        - ${self:custom.GitHubTopic}
-        - ${self:custom.StackOverflowTopic}
-        - ${self:custom.TwitterTopic}
-resources:
+
   Resources:
     S3BucketPermissions:
       Type: AWS::S3::BucketPolicy
@@ -82,67 +27,61 @@ resources:
               Resource: arn:aws:s3:::${self:custom.s3Bucket}/*
 
 
+
 package:
-  exclude:
-    - node_modules/**
-    - a/**
+  patterns:
+    - "!node_modules/**"
+    - "!a/**"
+    - "!venv/**"
+    - "!venv2/**"
 
 plugins:
   - serverless-python-requirements
+  - serverless-offline
 
 functions:
-  page-summary:
-      name: CommunityGraphCLI-${self:custom.communityName}-GeneratePageSummary
-      handler: handler.generate_page_summary
-      events:
-        - schedule: rate(1 hour)
+  # page-summary:
+  #     name: CommunityGraphCLI-${self:custom.communityName}-GeneratePageSummary
+  #     handler: handler.generate_page_summary
+  #     events:
+  #       - schedule: rate(1 hour)
+  page-http-summary:
+    name: CommunityGraphCLI-${self:custom.communityName}-HttpPageSummary
+    handler: handler.summary_page
+    events:
+      - http:
+          path: /
+          method: get
   so-import:
       name: CommunityGraphCLI-${self:custom.communityName}-StackOverflowImport
-      handler: handler.so_import
-      events:
-        - sns:
-            topicName: StackOverflow-${file(${env:CONFIG_FILE, 'communitygraph.json'}):communityName}
-            displayName: Topic to process StackOverflow events
-  so-publish-events-import:
-      name: CommunityGraphCLI-${self:custom.communityName}-StackOverflowPublishEventsImport
-      handler: handler.so_publish_events_import
+      handler: lib.so.handler
       events:
         - schedule: rate(1 hour)
   meetup-events-import:
-      name: CommunityGraphCLI-${self:custom.communityName}-MeetupEventsImport
-      handler: handler.meetup_events_import
+      name: CommunityGraphCLI-${self:custom.communityName}-MeetupImport
+      handler: lib.meetup.handler
       events:
         - schedule: rate(1 hour)
-  meetup-groups-import:
-      name: CommunityGraphCLI-${self:custom.communityName}-MeetupGroupsImport
-      handler: handler.meetup_groups_import
-      events:
-        - schedule: rate(1 day)
+  # meetup-events-import:
+  #     name: CommunityGraphCLI-${self:custom.communityName}-MeetupEventsImport
+  #     handler: handler.meetup_events_import
+  #     events:
+  #       - schedule: rate(1 hour)
+  # meetup-groups-import:
+  #     name: CommunityGraphCLI-${self:custom.communityName}-MeetupGroupsImport
+  #     handler: handler.meetup_groups_import
+  #     events:
+  #       - schedule: rate(1 day)
   github-import:
       name: CommunityGraphCLI-${self:custom.communityName}-GitHubImport
-      handler: handler.github_import
-      events:
-        - sns:
-            topicName: GitHub-${file(${env:CONFIG_FILE, 'communitygraph.json'}):communityName}
-            displayName: Topic to process GitHub events
-  github-publish-events-import:
-      name: CommunityGraphCLI-${self:custom.communityName}-GitHubPublishEventsImport
-      handler: handler.github_publish_events_import
+      handler: lib.github.handler
       events:
         - schedule: rate(1 hour)
-
-  twitter-publish-events-import:
-      name: CommunityGraphCLI-${self:custom.communityName}-TwitterPublishEventsImport
-      handler: handler.twitter_publish_events_import
+  twitter-import:
+      name: CommunityGraphCLI-${self:custom.communityName}-TwitterImport
+      handler: lib.twitter.handler
       events:
         - schedule: rate(1 minute)
-  twitter-topic-import:
-      name: CommunityGraphCLI-${self:custom.communityName}-Twitter-Topic-Import
-      handler: handler.twitter_topic_import
-      events:
-        - sns:
-            topicName: Twitter-${file(${env:CONFIG_FILE, 'communitygraph.json'}):communityName}
-            displayName: Topic to process Twitter events
 
   constraints:
       name: CommunityGraphCLI-${self:custom.communityName}-Constraints

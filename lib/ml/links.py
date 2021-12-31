@@ -1,4 +1,4 @@
-from neo4j.v1 import GraphDatabase, basic_auth
+from neo4j import GraphDatabase, basic_auth
 from future.utils import viewvalues
 
 import dedupe

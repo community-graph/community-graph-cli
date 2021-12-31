@@ -1,10 +1,12 @@
 import time
 import requests
-
-from neo4j.v1 import GraphDatabase, basic_auth
+import json, os
+from .encryption import decrypt_value
+from neo4j import GraphDatabase, basic_auth
+from lib.config import read_config
 
 import_meetup_events_query = """
-UNWIND {json} as e
+UNWIND $json as e
 MATCH (g:Group {id:e.group.id})
 MERGE (event:Event:Meetup {id:e.id}) 
 ON CREATE SET event.title=e.name,event.text=e.description,event.created=e.created,
@@ -27,7 +29,7 @@ MERGE (venue)-[:HOSTED]->(event)
 """
 
 import_meetup_groups_query = """
-UNWIND {json} as g
+UNWIND $json as g
 MERGE (group:Group:Meetup:Container {id:g.id}) 
   ON CREATE SET group.title=g.name,group.text=g.description,group.key=g.urlname,group.country=g.country,group.city=g.city,group.created=g.created,group.link=g.link,group.longitude=g.lon,group.latitude=g.lat,group.members=g.members
 SET group.rating=g.rating
@@ -81,9 +83,9 @@ def run_import(type, url, session, query, meetup_key, params):
     items = 100
 
     while has_more:
-        api_url = url + "&key={key}&offset={offset}&page={items}".format(key=meetup_key, offset=page, items=items)
-
-        response = requests.get(api_url, headers={"accept": "application/json"})
+        api_url = url + "&offset={offset}&page={items}".format(offset=page, items=items)
+        print (api_url)
+        response = requests.get(api_url, headers={"Authorization" : "Bearer " + meetup_key,"accept": "application/json"})
         if response.status_code != 200:
             print("Request failed with status code {code}".format(code=response.status_code))
             print(response.text)
@@ -112,3 +114,22 @@ def run_import(type, url, session, query, meetup_key, params):
         time.sleep(1)
         if rate_remain <= 0:
             time.sleep(rate_reset)
+def handler(event,_):
+
+    config = read_config()
+    credentials = config["credentials"]
+    write_credentials = credentials["write"]
+    neo4j_url = "{url}".format(url=config.get("serverUrl", "bolt+routing://localhost"))
+    neo4j_user = write_credentials.get('user', "neo4j")
+    neo4j_password = decrypt_value(write_credentials['password'])
+    meetup_key = decrypt_value(credentials["meetupApiKey"])
+    import_events(neo4j_url=neo4j_url, neo4j_user=neo4j_user, neo4j_pass=neo4j_password, meetup_key=meetup_key)
+    return {
+        "statusCode": 200
+    }
+    #tag = config["tag"]
+
+    #import_groups(neo4j_url=neo4j_url, neo4j_user=neo4j_user, neo4j_pass=neo4j_password, tag=tag,
+    #                     meetup_key=meetup_key)
+if __name__ == "__main__":
+    handler({},{})

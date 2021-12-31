@@ -1,13 +1,11 @@
 from datetime import datetime, timezone
-
-import boto
+import humanize
 import flask
-from ago import human
 from flask import render_template
-from neo4j.v1 import GraphDatabase
+from neo4j import GraphDatabase
 
 twitter_query = """\
-WITH ((timestamp() / 1000) - (7 * 24 * 60 * 60)) AS oneWeekAgo
+WITH ((timestamp() / 1000 ) - (7 * 60 * 60 * 24)) AS oneWeekAgo
 MATCH (l:Link)<--(t:Tweet:Content)
 WHERE not(t:Retweet)
 
@@ -25,7 +23,7 @@ ORDER BY score DESC
 """
 
 github_query = """\
-MATCH (n:Repository) WHERE EXISTS(n.created) AND n.pushed > timestamp() - 7 * 60 * 60 * 24 * 1000
+MATCH (n:Repository) WHERE n.created IS NOT NULL AND n.pushed > ((timestamp()) - (7 * 60 * 60 * 24 * 1000) )
 WITH n
 ORDER BY n.updated desc
 MATCH (n)<-[:CREATED]-(user:GitHubAccount)
@@ -35,7 +33,7 @@ ORDER BY n.pushed desc
 
 meetup_query = """\
 MATCH (event:Event)<-[:CONTAINED]-(group)
-WHERE timestamp() + 7 * 60 * 60 * 24 * 1000 > event.time > timestamp() - 7 * 60 * 60 * 24 * 1000
+WHERE ((timestamp()) + (7 * 60 * 60 * 24 * 1000) ) > event.time > ((timestamp()) - (7 * 60 * 60 * 24 * 1000) )
 RETURN event, group
 ORDER BY event.time
 """
@@ -49,7 +47,7 @@ ORDER BY question.views DESC
 """
 
 github_active_query = """
-MATCH (n:Repository) WHERE EXISTS(n.created) AND n.updated > timestamp() - 7* 60 * 60 * 24 * 1000
+MATCH (n:Repository) WHERE n.created IS NOT NULL AND n.updated > (timestamp() - 7* 60 * 60 * 24 *1000)
 WITH n
 MATCH (n)<-[:CREATED]-(user:GitHubAccount) WHERE NOT (user.name IN ["neo4j", "neo4j-contrib"])
 WITH user, COUNT(*) AS count, COLLECT(n) as repos
@@ -59,18 +57,15 @@ RETURN user.name, user.avatarUrl, count, [repo in repos | repo { .title, .full_n
 
 twitter_active_query = """\
 MATCH (n:Tweet)
-WHERE EXISTS(n.created) AND n.created > ((timestamp() / 1000) - 7 * 60 * 60 * 24 )
+WHERE n.created IS NOT NULL AND n.created > ((timestamp() / 1000) - 7 * 60 * 60 * 24 )
 WITH n
 MATCH (n)<-[:POSTED]-(user) WHERE NOT (user.screen_name IN ["neo4j", "neo4j-contrib"])
-
 WITH user, COUNT(*) AS count
 ORDER BY count desc
 WITH user, count, [70,63,56,49,42,35,28,21,14,7,0] AS previousWeeks
-
 WITH user, count,
     [daysAgo in previousWeeks | size([path in (user)-[:POSTED]->(:Tweet) WHERE EXISTS(nodes(path)[-1].created)
 AND ((timestamp() / 1000) - daysAgo * 60 * 60 * 24 ) > nodes(path)[-1].created > ((timestamp() / 1000) - (daysAgo+7) * 60 * 60 * 24 )])] AS lastWeekCount
-
 RETURN user.screen_name AS user, count, lastWeekCount
 ORDER BY count desc
 """
@@ -80,7 +75,6 @@ WITH ((timestamp() / 1000) - (7 * 24 * 60 * 60)) AS oneWeekAgo,
      ((timestamp() / 1000) - (14* 24 * 60 * 60)) AS twoWeeksAgo
 MATCH (question:Question:Content:StackOverflow)<--(:Answer)<-[:POSTED]-(user)
 WHERE question.created > oneWeekAgo
-
 WITH user, count(*) AS replies, oneWeekAgo, twoWeeksAgo
 ORDER BY replies DESC
 OPTIONAL MATCH (user)-[:POSTED]->(:Answer)-->(question:Question)
@@ -94,7 +88,7 @@ app = flask.Flask('my app')
 
 @app.template_filter('humanise')
 def humanise_filter(value):
-    return human(datetime.fromtimestamp(value / 1000), precision=1)
+    return humanize.naturaltime(datetime.fromtimestamp(value / 1000))#, precision=1)
 
 
 @app.template_filter("shorten")
@@ -109,9 +103,8 @@ def shorten_filter(value):
 def string_separate_filter(value):
     return ",".join(str(i) for i in value)
 
-
-def generate(url, user, password, title, short_name, logo_src):
-    with GraphDatabase.driver("bolt://{url}".format(url=url), auth=(user, password)) as driver:
+def summarize (url,user,password, title, logo_src):
+    with GraphDatabase.driver(url, auth=(user, password)) as driver:
         with driver.session() as session:
             github_records = session.read_transaction(lambda tx: list(tx.run(github_query)))
             twitter_records = session.read_transaction(lambda tx: list(tx.run(twitter_query)))
@@ -133,7 +126,10 @@ def generate(url, user, password, title, short_name, logo_src):
                                    title=title,
                                    logo_src=logo_src,
                                    time_now=str(datetime.now(timezone.utc)))
+    return rendered
 
+def generate(url, user, password, title, short_name, logo_src):
+        rendered = summarize(url,user,password,title,logo_src)
         local_file_name = "/tmp/{file_name}.html".format(file_name=short_name)
         with open(local_file_name, "wb") as file:
             file.write(rendered.encode('utf-8'))

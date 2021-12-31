@@ -1,4 +1,4 @@
-from neo4j.v1 import GraphDatabase, basic_auth
+from neo4j import GraphDatabase, basic_auth
 
 
 def configure_constraints(neo4j_url, neo4j_user, neo4j_pass):

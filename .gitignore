@@ -4,3 +4,5 @@ communitygraph.json
 .serverless
 node_modules
 __pycache__
+venv
+venv2

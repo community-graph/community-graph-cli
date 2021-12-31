@@ -4,19 +4,20 @@ import urllib
 import urllib.parse
 from urllib.parse import urlencode, urlparse, urlunparse, parse_qs
 from urllib.parse import urlparse
-
+import json, os
+from .encryption import decrypt_value
 import requests
 from bs4 import BeautifulSoup
-from neo4j.v1 import GraphDatabase, basic_auth
+from neo4j import GraphDatabase, basic_auth
 from user_agent import generate_user_agent, generate_navigator
+from lib.config import read_config
 
 # from neo4j.util import Watcher
 # watcher = Watcher("neo4j.bolt")
 # watcher.watch()
 
 import_tweet_query = """\
-WITH {tweet} AS t
-
+WITH $tweet AS t
 WITH t,
      t.entities AS e,
      t.user AS u,
@@ -40,13 +41,13 @@ SET user.name = u.name, user.id = u.id,
 MERGE (user)-[:POSTED]->(tweet)
 
 FOREACH (h IN e.hashtags |
-  MERGE (tag:Tag {name:LOWER(h.text)}) SET tag:Twitter
+  MERGE (tag:Tag {name:toLower(h.text)}) SET tag:Twitter
   MERGE (tag)<-[:TAGGED]-(tweet)
 )
 
 FOREACH (u IN e.urls |
   MERGE (url:Link {url:u.expanded_url})
-  SET url:Twitter, url.title = u.title, url.l.cleanUrl = u.expanded_url
+  SET url:Twitter, url.title = u.title, url.cleanUrl = u.expanded_url
   MERGE (tweet)-[:LINKED]->(url)
 )
 
@@ -128,11 +129,11 @@ MATCH (link:Link)
 WHERE exists(link.short) OR link.url contains "r.neo4j.com"
 RETURN id(link) as id, link.url as url
 ORDER BY id DESC
-LIMIT {limit}
+LIMIT $limit
 """
 
 unshorten_query = """\
-UNWIND {data} AS row
+UNWIND $data AS row
 MATCH (link)
 WHERE id(link) = row.id
 SET link.url = row.url
@@ -164,7 +165,7 @@ def unshorten_links(neo4j_url, neo4j_user, neo4j_pass):
             print(result.consume().counters)
 
 import_query = """\
-UNWIND {tweets} AS t
+UNWIND $tweets AS t
 
 WITH t
 ORDER BY t.id
@@ -233,8 +234,6 @@ def find_last_tweet(neo4j_url, neo4j_user, neo4j_pass):
 
 def find_tweets_since(since_id, search, bearer_token):
     q = urllib.parse.quote(search, safe='')
-    max_pages = 100
-
     count = 100
     result_type = "recent"
     lang = "en"
@@ -459,3 +458,36 @@ def clean_uri(url):
     u = u._replace(query=bytes(urlencode(query, True), "utf-8"))
 
     return urlunparse(u).decode("utf-8")
+
+def handler(event,_):
+    config = read_config()
+    credentials = config["credentials"]
+    neo4j_url = "{url}".format(url=config.get("serverUrl", "bolt+routing://localhost"))
+    neo4j_user = credentials["readonly"].get('user', "neo4j")
+    neo4j_password = credentials["readonly"]['password']
+    since_id = find_last_tweet(neo4j_url,neo4j_user,neo4j_password)
+    search = config["twitterSearch"]
+    twitter_bearer = credentials["twitterBearer"]
+    tweets = find_tweets_since(since_id,search,twitter_bearer)
+    importer = TwitterImporter(neo4j_url, neo4j_user, neo4j_password)
+    for tweet in tweets:
+        print(f"Processing tweet {tweet['id']}")
+        for url in tweet["entities"]["urls"]:
+            initial_uri = url["expanded_url"]
+            expanded_uri = importer.unshorten(initial_uri)
+            cleaned_uri = importer.clean_uri(expanded_uri)
+
+            print(f"Initial: {initial_uri}, Expanded: {expanded_uri}, Cleaned: {cleaned_uri}")
+
+            url["expanded_url"] = cleaned_uri
+
+            title = importer.hydrate_url(expanded_uri)
+            url["title"] = title
+        importer.import_tweet(tweet)
+    return {
+        "statusCode": 200
+    }
+if __name__ == "__main__":
+    handler({},{})
+
+    

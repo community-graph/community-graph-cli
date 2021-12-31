@@ -2,7 +2,7 @@ import csv
 from collections import Counter
 import flask
 from flask import Flask, render_template, request, redirect, url_for
-from neo4j.v1 import GraphDatabase, basic_auth
+from neo4j import GraphDatabase, basic_auth
 
 app = Flask(__name__)
 driver = GraphDatabase.driver("bolt://138.197.15.1/", auth=basic_auth("neo4j", "RUXePcMaDimWNpmFgt4iHXMa"))

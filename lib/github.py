@@ -2,13 +2,14 @@ import datetime
 import json
 import time
 from datetime import timezone
-
+from .encryption import decrypt_value
 import requests
 from dateutil.parser import parse
-from neo4j.v1 import GraphDatabase, basic_auth
+from neo4j import GraphDatabase, basic_auth
+from lib.config import read_config
 
 import_query = """
-WITH {json} as data
+WITH $json as data
 UNWIND data.items as r
 MERGE (repo:Repository:GitHub {id:r.id})
 ON CREATE SET
@@ -148,7 +149,7 @@ query Repositories($ids: [ID!]!) {
 """
 
 update_release_assets_query = """
-WITH {json} as data
+WITH $json as data
 UNWIND data as r
 MATCH (repo:Repository:GitHub {id:r.databaseId})
 WITH repo, r
@@ -161,7 +162,10 @@ YIELD node
 MERGE (repo)-[:RELEASE_ASSET]->(node)
 """
 
-
+def chunks(lst, n):
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
 class GitHubImporter:
     def __init__(self, neo4j_url, neo4j_user, neo4j_pass, github_token):
         self.neo4j_url = neo4j_url
@@ -177,51 +181,51 @@ class GitHubImporter:
                 print("Updating release assets: {0}".format(ids))
 
                 api_url = "https://api.github.com/graphql"
+                for id_chuck in chunks(ids,100):
+                  data = {
+                      "query": release_assets_graphql_query,
+                      "variables": {"ids": id_chuck}
+                  }
 
-                data = {
-                    "query": release_assets_graphql_query,
-                    "variables": {"ids": ids}
-                }
+                  bearer_token = "bearer {token}".format(token=self.github_token)
+                  response = requests.post(api_url,
+                                          data=json.dumps(data),
+                                          headers={"accept": "application/json",
+                                                    "Authorization": bearer_token})
 
-                bearer_token = "bearer {token}".format(token=self.github_token)
-                response = requests.post(api_url,
-                                         data=json.dumps(data),
-                                         headers={"accept": "application/json",
-                                                  "Authorization": bearer_token})
+                  if response.status_code != 200:
+                      print("Request failed with status code {code}".format(code=response.status_code))
+                      print(response.text)
+                      return
 
-                if response.status_code != 200:
-                    print("Request failed with status code {code}".format(code=response.status_code))
-                    print(response.text)
-                    return
+                  r = response.json()
+                  if not "data" in r:
+                      print("Response doesn't contain a 'data' section so we can't continue")
+                      print(response.text)
+                      return
 
-                r = response.json()
-                if not r["data"]:
-                    print("Response doesn't contain a 'data' section so we can't continue")
-                    print(response.text)
-                    return
+                  the_json = []
+                  for repository in r["data"]["nodes"]:
+                      if repository:
+                          entry = {
+                              "databaseId": repository["databaseId"],
+                              "name": repository["name"]
+                          }
 
-                the_json = []
-                for repository in r["data"]["nodes"]:
-                    if repository:
-                        entry = {
-                            "databaseId": repository["databaseId"],
-                            "name": repository["name"]
-                        }
+                          releases = []
+                          for release in repository["releases"]["nodes"]:
+                              release_assets = release["releaseAssets"]["nodes"]
+                              if len(release_assets) > 0:
+                                  releases.append({
+                                      "name": release_assets[0]["name"],
+                                      "downloadCount": release_assets[0]["downloadCount"]
+                                  })
 
-                        releases = []
-                        for release in repository["releases"]["nodes"]:
-                            release_assets = release["releaseAssets"]["nodes"]
-                            if len(release_assets) > 0:
-                                releases.append({
-                                    "name": release_assets[0]["name"],
-                                    "downloadCount": release_assets[0]["downloadCount"]
-                                })
+                          entry["releases"] = releases
+                          the_json.append(entry)
 
-                        entry["releases"] = releases
-                        the_json.append(entry)
-
-                result = session.run(update_release_assets_query, {"json": the_json})
-                print(result.consume().counters)
+                  result = session.run(update_release_assets_query, {"json": the_json})
+                  print(result.consume().counters)
 
     def process_tag(self, tags, start_date, end_date):
         with GraphDatabase.driver(self.neo4j_url, auth=basic_auth(self.neo4j_user, self.neo4j_pass)) as driver:
@@ -252,7 +256,7 @@ class GitHubImporter:
                         return
 
                     r = response.json()
-                    if not r["data"]:
+                    if not "data" in r:
                         print("Response doesn't contain a 'data' section so we can't continue")
                         print("Params: {0}".format(tags))
                         print(response.text)
@@ -337,3 +341,35 @@ def import_github(neo4j_url, neo4j_user, neo4j_pass, tag, github_token):
 
 def chunker(seq, size):
     return (seq[pos:pos + size] for pos in range(0, len(seq), size))
+
+def handler(event,_):
+    config = read_config()
+    tag = config["tag"]
+    credentials = config["credentials"]
+    write_credentials = credentials["write"]
+
+    neo4j_url = "{url}".format(url=config.get("serverUrl", "bolt+routing://localhost"))
+    neo4j_user = write_credentials.get('user', "neo4j")
+    neo4j_password = decrypt_value(write_credentials['password'])
+    github_token = decrypt_value(credentials["githubToken"])
+
+    parameters = []
+    for tags in chunker(tag, 5):
+        start_date = (datetime.datetime.now(timezone.utc) - datetime.timedelta(hours=1)).strftime(
+            "%Y-%m-%dT%H:%M:%S+00:00")
+        end_date = datetime.datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+        # maybe I can add a field that indicates if it's an import or release asset downloadCount update
+        params = {"startDate": start_date, "endDate": end_date, "tags": tags}
+        parameters.append(params)
+    importer = GitHubImporter(neo4j_url, neo4j_user, neo4j_password, github_token)
+    importer.update_release_assets()
+    for params in parameters:   
+       tags = params["tags"]
+       start_date = params["startDate"]
+       end_date = params["endDate"]
+       importer.process_tag(tags, start_date, end_date)
+    return {
+      "statusCode": 200
+    }
+if __name__ == "__main__":
+  handler ({},{})

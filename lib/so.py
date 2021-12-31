@@ -1,10 +1,15 @@
 import time
 
 import requests
-from neo4j.v1 import GraphDatabase, basic_auth
+from neo4j import GraphDatabase, basic_auth
+import  datetime
+from datetime import timezone
+from .encryption import decrypt_value
+from dateutil import parser
+from lib.config import read_config
 
 import_query = """\
-WITH {json} as data
+WITH $json as data
 UNWIND data.items as q
 MERGE (question:Question {id:q.question_id})
   ON CREATE SET question.title = q.title, question.url = q.share_link, question.created = q.creation_date
@@ -21,7 +26,7 @@ FOREACH (a IN q.answers |
    SET answer.accepted = a.is_accepted, answer.upVotes = a.up_vote_count, answer.downVotes = a.down_vote_count,
        answer:Content, answer:StackOverflow
    MERGE (question)<-[:ANSWERED]-(answer)
-   FOREACH (a_owner IN filter(o IN [a.owner] where o.user_id is not null) |
+   FOREACH (a_owner IN [o IN [a.owner] where o.user_id is not null] |
      MERGE (answerer:User:StackOverflow {id:a_owner.user_id})
      ON CREATE SET answerer.name = a_owner.display_name
      SET answerer.reputation = a_owner.reputation, answerer.profileImage = a_owner.profile_image
@@ -60,7 +65,7 @@ class SOImporter:
                     api_url = self.construct_uri(page, items, tag, start_date, end_date, self.so_key)
 
                     response = requests.get(api_url, headers={"accept": "application/json"})
-                    print(response.status_code)
+                    print("Bad request, returned status code: " + str(response.status_code))
                     if response.status_code != 200:
                         print(response.text)
                     json = response.json()
@@ -85,7 +90,7 @@ class SOImporter:
         return tx.run(import_query, json=json)
 
     def construct_uri(self, page, items, tag, from_date, to_date, so_key):
-        api_url = "https://api.stackexchange.com/2.2/search?page={page}&pagesize={items}&order=asc&sort=creation&tagged={tag}&site=stackoverflow&key={key}&filter=!5-i6Zw8Y)4W7vpy91PMYsKM-k9yzEsSC1_Uxlf".format(
+        api_url = "https://api.stackexchange.com/2.2/search?page={page}&pagesize={items}&order=asc&sort=creation&tagged={tag}&site=stackoverflow&filter=!5-i6Zw8Y)4W7vpy91PMYsKM-k9yzEsSC1_Uxlf".format(
             tag=tag, page=page, items=items, key=so_key)
 
         if from_date is not None:
@@ -144,3 +149,24 @@ class SOImporter:
 #         api_url += "&fromdate={max_date}".format(max_date=max_date)
 
 #     return api_url
+def handler(event,_):
+
+    def as_timestamp(dt):
+        return int(datetime.datetime.timestamp(dt))
+
+    config = read_config()
+    credentials = config["credentials"]
+    tag = config["tag"]
+    neo4j_url = "{url}".format(url=config.get("serverUrl", "bolt+routing://localhost"))
+    neo4j_user = credentials["readonly"].get('user', "neo4j")
+    neo4j_password = decrypt_value(credentials["readonly"]['password'])
+    so_key = config["credentials"]["stackOverflowApiKey"]
+    start_date = as_timestamp(parser.parse((datetime.datetime.now(timezone.utc) - datetime.timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%S+00:00")))
+    end_date = as_timestamp(parser.parse((datetime.datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+00:00"))))   
+    importer = SOImporter(neo4j_url, neo4j_user, neo4j_password,so_key)
+    importer.process_tag(tag, start_date,end_date)
+    return {
+        "statusCode": 200
+    }
+if __name__ == "__main__":
+    handler({},{})
