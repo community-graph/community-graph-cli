@@ -30,7 +30,7 @@
     "command-line-commands": "^2.0.1",
     "commander": "^2.11.0",
     "follow-redirects": "^1.2.3",
-    "minimist": "^1.2.0",
+    "minimist": "^1.2.6",
     "opn": "^5.0.0",
     "prompt": "^1.0.0",
     "serverless": "^2.35.0",
