@@ -29,7 +29,7 @@ jmespath==0.9.3
 Levenshtein-search==1.4.4
 MarkupSafe==1.1.1
 neo4j==4.4.0
-numpy==1.20.2
+numpy==1.22.0
 packaging==16.8
 persistent==4.2.4.2
 pyhacrf-datamade==0.2.5
