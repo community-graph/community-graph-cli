@@ -8,7 +8,7 @@ botocore==1.5.58
 bs4==0.0.1
 BTrees==4.4.1
 categorical-distance==1.9
-certifi==2017.4.17
+certifi==2022.12.7
 chardet==3.0.3
 click==6.7
 datetime-distance==0.1.3
