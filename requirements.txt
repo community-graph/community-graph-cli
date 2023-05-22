@@ -37,7 +37,7 @@ PyLBFGS==0.2.0.13
 pyparsing==2.2.0
 python-dateutil==2.6.0
 pytz==2018.9
-requests==2.17.3
+requests==2.31.0
 rlr==2.4.3
 s3transfer==0.1.10
 simplecosine==1.2
